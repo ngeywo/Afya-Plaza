@@ -96,4 +96,58 @@ export const financeService = {
         const response = await api.get(`/payments/${id}`);
         return response.data.data;
     },
+    /**
+     * GET /api/payments/{id}
+     */
+    async getPayment(id) {
+        const response = await api.get(`/payments/${id}`);
+        return response.data.data;
+    },
+
+    // ─── Doctor Payouts ─────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/finance/payouts
+     * Returns the authenticated doctor's payout history.
+     */
+    async getDoctorPayouts(params = {}) {
+        const response = await api.get('/finance/payouts', { params });
+        return response.data;
+    },
+
+    // ─── Super Admin Payout Management ───────────────────────────────────────────
+
+    /**
+     * GET /api/admin/finance/payouts
+     * Returns all payout requests for Super Admin.
+     */
+    async getAdminPayouts(params = {}) {
+        const response = await api.get('/admin/finance/payouts', { params });
+        return response.data;
+    },
+
+    /**
+     * POST /api/admin/finance/payouts/{id}/approve
+     */
+    async approvePayout(id, notes = '') {
+        const response = await api.post(`/admin/finance/payouts/${id}/approve`, { notes });
+        return response.data;
+    },
+
+    /**
+     * POST /api/admin/finance/payouts/{id}/reject
+     */
+    async rejectPayout(id, reason = '') {
+        const response = await api.post(`/admin/finance/payouts/${id}/reject`, { reason });
+        return response.data;
+    },
+
+    /**
+     * POST /api/admin/finance/payouts/{id}/cancel
+     */
+    async cancelPayout(id) {
+        const response = await api.post(`/admin/finance/payouts/${id}/cancel`);
+        return response.data;
+    },
+};
 };

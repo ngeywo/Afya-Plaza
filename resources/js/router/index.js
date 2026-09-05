@@ -97,6 +97,10 @@ const routes = [
             { path: "inspect/:type/:id/appointments", name: "admin-inspect-appointments", component: AdminInspectAppointments, meta: { title: "Appointments", requiresSuperAdmin: true } },
             { path: "inspect/:type/:id/profile", name: "admin-inspect-profile", component: AdminInspectProfile, meta: { title: "Profile", requiresSuperAdmin: true } },
             { path: "finance", name: "admin-finance", component: AdminFinance, meta: { title: "Marketplace Finance", requiresSuperAdmin: true } },
+            { path: "payouts", name: "admin-payouts", component: () => import("../views/super-admin/Payouts.vue"), meta: { title: "Payouts", requiresSuperAdmin: true } },
+        ],
+    },
+            { path: "finance", name: "admin-finance", component: AdminFinance, meta: { title: "Marketplace Finance", requiresSuperAdmin: true } },
         ],
     },
 
