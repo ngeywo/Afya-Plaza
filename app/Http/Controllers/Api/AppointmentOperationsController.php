@@ -108,6 +108,31 @@ class AppointmentOperationsController extends Controller
         return response()->json(['data' => $this->format($updated), 'message' => 'Appointment cancelled.']);
     }
 
+    /**
+     * Phase 18: Patient-initiated cancellation.
+     * Only the patient who booked the appointment may cancel it.
+     * The backend validates ownership, state, and issues a refund per policy.
+     */
+    public function patientCancel(Request $request, Appointment $appointment): JsonResponse
+    {
+        $request->validate(['cancellation_reason' => 'nullable|string|max:500']);
+        $user = $request->user();
+        
+        // IDOR protection: patient can only cancel their own appointment
+        if ($appointment->user_id !== $user->id) {
+            return response()->json(['error' => 'You can only cancel your own appointments.'], 403);
+        }
+        
+        try {
+            $updated = $this->service->patientCancel($appointment, $user, $request->input('cancellation_reason'));
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 403);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+        return response()->json(['data' => $this->format($updated), 'message' => 'Appointment cancelled.']);
+    }
+
     private function format(Appointment $a): array
     {
         $a->loadMissing(['doctor', 'facility', 'clinicSession', 'checkedInByUser']);

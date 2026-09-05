@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/appointments/{appointment}/no-show', [AppointmentOperationsController::class, 'noShow']);
     Route::post('/appointments/{appointment}/facility-cancel', [AppointmentOperationsController::class, 'facilityCancel']);
     Route::post('/appointments/{appointment}/doctor-cancel', [AppointmentOperationsController::class, 'doctorCancel']); // Phase 17
+    Route::post('/appointments/{appointment}/patient-cancel', [AppointmentOperationsController::class, 'patientCancel']); // Phase 18
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
