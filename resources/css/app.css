@@ -1,0 +1,12 @@
+/* Bootstrap CSS */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/* Custom styles */
+:root {
+    --primary-color: #0F766E;
+    --secondary-color: #2563EB;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
