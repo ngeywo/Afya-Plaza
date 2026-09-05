@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DoctorWorkspaceController;
 use App\Http\Controllers\Api\FacilityController;
 use App\Http\Controllers\Api\FacilityWorkspaceController;
 use App\Http\Controllers\Api\FinanceController;
+use App\Http\Controllers\Api\MarketplaceCommandCentreController;
 use App\Http\Controllers\Api\MpesaController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\Api\PatientDiscoveryController;
 use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\SessionSlotController;
 use App\Http\Controllers\Api\SpecialtyController;
+use App\Http\Controllers\Api\SuperAdmin\AdminController;
+use App\Http\Controllers\Api\SuperAdmin\AdminWorkspaceController;
+use App\Http\Controllers\Api\SuperAdmin\SuperAdminDashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +43,12 @@ Route::get("/sessions/{id}/slots", [SessionSlotController::class, "index"]);
 Route::post("/auth/login", [AuthController::class, "login"]);
 Route::post("/auth/register", [AuthController::class, "register"]);
 
+// Public marketplace endpoints (no auth required)
+Route::get("/admin/marketplace/command-centre", [MarketplaceCommandCentreController::class, "index"]);
+Route::get("/admin/marketplace/health", [MarketplaceCommandCentreController::class, "health"]);
+Route::get("/admin/marketplace/attention", [MarketplaceCommandCentreController::class, "attention"]);
+Route::get("/admin/marketplace/today", [MarketplaceCommandCentreController::class, "today"]);
+
 Route::middleware("auth:sanctum")->group(function () {
     Route::get("/auth/me", [AuthController::class, "me"]);
     Route::post("/auth/logout", [AuthController::class, "logout"]);
@@ -54,54 +64,54 @@ Route::middleware("auth:sanctum")->group(function () {
     Route::post("/appointments/{appointment}/patient-cancel", [AppointmentOperationsController::class, "patientCancel"]);
     Route::post("/appointments/{appointment}/doctor-cancel", [AppointmentOperationsController::class, "doctorCancel"]);
     Route::post("/appointments/{appointment}/facility-cancel", [AppointmentOperationsController::class, "facilityCancel"]);
-    Route::post("/appointments/{appointment}/reschedule", [AppointmentOperationsController::class, "reschedule"]);
-    Route::post("/payments/initiate", [PaymentController::class, "initiate"]);
-    Route::get("/payments/{id}", [PaymentController::class, "show"]);
-    Route::get("/v1/mpesa/stk/status/{paymentId}", [MpesaController::class, "stkStatus"]);
-    Route::post("/doctors/{id}/follow", [DoctorFollowController::class, "follow"]);
-    Route::delete("/doctors/{id}/follow", [DoctorFollowController::class, "unfollow"]);
     Route::get("/notifications", [NotificationController::class, "index"]);
     Route::patch("/notifications/{id}/read", [NotificationController::class, "markRead"]);
-    Route::get("/clinic-day", [ClinicDayController::class, "today"]);
-    Route::get("/clinic-day/{date}", [ClinicDayController::class, "show"]);
-    Route::get("/sessions", [SessionController::class, "index"]);
-    Route::post("/sessions", [SessionController::class, "store"]);
-    Route::patch("/sessions/{id}", [SessionController::class, "update"]);
-    Route::delete("/sessions/{id}", [SessionController::class, "destroy"]);
-    Route::post("/sessions/{id}/confirm", [SessionController::class, "confirm"]);
-    Route::post("/sessions/{id}/cancel", [SessionController::class, "cancel"]);
-    Route::post("/sessions/{id}/restore", [SessionController::class, "restore"]);
-    Route::get("/sessions/{session}/slots", [SessionSlotController::class, "index"]);
-    Route::get("/schedule", [DoctorWorkspaceController::class, "schedule"]);
-    Route::get("/schedule/weekly", [DoctorWorkspaceController::class, "weeklySchedule"]);
-    Route::get("/me/doctor-profile", [DoctorWorkspaceController::class, "myDoctorProfile"]);
-    Route::get("/me/facilities", [DoctorWorkspaceController::class, "myFacilities"]);
-    Route::get("/me/dashboard", [DoctorWorkspaceController::class, "dashboard"]);
-    Route::get("/me/today-clinic", [DoctorWorkspaceController::class, "todayClinic"]);
-    Route::get("/me/appointments", [DoctorWorkspaceController::class, "appointments"]);
-    Route::get("/facility/dashboard", [FacilityWorkspaceController::class, "dashboard"]);
-    Route::get("/facility/today-doctors", [FacilityWorkspaceController::class, "todayDoctors"]);
-    Route::get("/facility/appointments", [FacilityWorkspaceController::class, "appointments"]);
-    Route::get("/facility/doctors", [FacilityWorkspaceController::class, "doctors"]);
-    Route::get("/facility/sessions", [FacilityWorkspaceController::class, "facilitySessions"]);
-    Route::get("/finance/earnings", [FinanceController::class, "earnings"]);
-    Route::get("/finance/payouts", [FinanceController::class, "doctorPayouts"]);
-    Route::post("/finance/payout-request", [FinanceController::class, "requestPayout"]);
-});
+    Route::post("/doctors/{doctor}/follow", [DoctorFollowController::class, "follow"]);
+    Route::delete("/doctors/{doctor}/follow", [DoctorFollowController::class, "unfollow"]);
 
-Route::middleware(["auth:sanctum", "ensure.super.admin"])->group(function () {
-    Route::get("/admin/finance/marketplace", [FinanceController::class, "marketplace"]);
-    Route::get("/admin/finance/payments", [FinanceController::class, "payments"]);
-    Route::get("/admin/finance/plans", [FinanceController::class, "plans"]);
-    Route::get("/admin/finance/payouts", [FinanceController::class, "adminPayouts"]);
-    Route::post("/admin/finance/payouts/{id}/approve", [FinanceController::class, "approvePayout"]);
-    Route::post("/admin/finance/payouts/{id}/reject", [FinanceController::class, "rejectPayout"]);
-    Route::post("/admin/finance/payouts/{id}/cancel", [FinanceController::class, "cancelPayout"]);
-    Route::get("/audit/logs", [\App\Http\Controllers\Api\SuperAdmin\SuperAdminDashboardController::class, "auditLogs"]);
-    Route::post("/doctors/{doctor}/reject", [\App\Http\Controllers\Api\SuperAdmin\SuperAdminDashboardController::class, "rejectDoctor"]);
-    Route::post("/doctors/{doctor}/suspend", [\App\Http\Controllers\Api\SuperAdmin\SuperAdminDashboardController::class, "suspendDoctor"]);
-    Route::post("/facilities/{facility}/reject", [\App\Http\Controllers\Api\SuperAdmin\SuperAdminDashboardController::class, "rejectFacility"]);
-    Route::post("/facilities/{facility}/suspend", [\App\Http\Controllers\Api\SuperAdmin\SuperAdminDashboardController::class, "suspendFacility"]);
+    // Doctor workspace
+    Route::prefix("doctor")->group(function () {
+        Route::get("/me", [DoctorWorkspaceController::class, "me"]);
+        Route::get("/dashboard", [DoctorWorkspaceController::class, "dashboard"]);
+        Route::get("/appointments", [DoctorWorkspaceController::class, "appointments"]);
+        Route::get("/schedule", [DoctorWorkspaceController::class, "schedule"]);
+        Route::get("/earnings", [FinanceController::class, "earnings"]);
+        Route::get("/earnings/{id}", [FinanceController::class, "earningDetail"]);
+        Route::get("/payouts", [FinanceController::class, "doctorPayouts"]);
+        Route::post("/payout-request", [FinanceController::class, "requestPayout"]);
+    });
+
+    // Facility workspace
+    Route::prefix("facility")->group(function () {
+        Route::get("/me", [FacilityWorkspaceController::class, "me"]);
+        Route::get("/dashboard", [FacilityWorkspaceController::class, "dashboard"]);
+        Route::get("/appointments", [FacilityWorkspaceController::class, "appointments"]);
+        Route::get("/doctors", [FacilityWorkspaceController::class, "doctors"]);
+        Route::get("/sessions", [FacilityWorkspaceController::class, "sessions"]);
+    });
+
+    // Admin workspace
+    Route::prefix("admin")->group(function () {
+        Route::get("/me", [AdminController::class, "me"]);
+        Route::get("/workspace", [AdminWorkspaceController::class, "workspace"]);
+        Route::post("/workspace/switch", [AdminWorkspaceController::class, "switchWorkspace"]);
+        Route::post("/workspace/exit", [AdminWorkspaceController::class, "exitWorkspace"]);
+        Route::get("/dashboard", [SuperAdminDashboardController::class, "dashboard"]);
+        Route::get("/audit/logs", [SuperAdminDashboardController::class, "auditLogs"]);
+        Route::get("/finance/marketplace", [FinanceController::class, "marketplace"]);
+        Route::get("/finance/payments", [FinanceController::class, "payments"]);
+        Route::get("/finance/plans", [FinanceController::class, "plans"]);
+        Route::get("/finance/payouts", [FinanceController::class, "adminPayouts"]);
+        Route::post("/finance/payouts/{id}/approve", [FinanceController::class, "approvePayout"]);
+        Route::post("/finance/payouts/{id}/reject", [FinanceController::class, "rejectPayout"]);
+        Route::post("/finance/payouts/{id}/cancel", [FinanceController::class, "cancelPayout"]);
+        Route::post("/doctors/{doctor}/approve", [SuperAdminDashboardController::class, "approveDoctor"]);
+        Route::post("/doctors/{doctor}/reject", [SuperAdminDashboardController::class, "rejectDoctor"]);
+        Route::post("/doctors/{doctor}/suspend", [SuperAdminDashboardController::class, "suspendDoctor"]);
+        Route::post("/facilities/{facility}/approve", [SuperAdminDashboardController::class, "approveFacility"]);
+        Route::post("/facilities/{facility}/reject", [SuperAdminDashboardController::class, "rejectFacility"]);
+        Route::post("/facilities/{facility}/suspend", [SuperAdminDashboardController::class, "suspendFacility"]);
+    });
 });
 
 Route::post("/payments/callback", [PaymentController::class, "callback"]);

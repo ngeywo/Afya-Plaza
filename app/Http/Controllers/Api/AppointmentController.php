@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\AppointmentBooked;
+use App\Exceptions\SlotConflictException;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\ClinicSession;
+use App\Services\AppointmentService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use App\Events\AppointmentBooked;
-use App\Exceptions\SlotConflictException;
-use App\Services\AppointmentService;
 
 class AppointmentController extends Controller
 {
@@ -24,7 +25,7 @@ class AppointmentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -35,10 +36,10 @@ class AppointmentController extends Controller
 
         if ($request->filled('filter')) {
             match ($request->filter) {
-                'upcoming'  => $query->upcoming(),
-                'past'      => $query->past(),
+                'upcoming' => $query->upcoming(),
+                'past' => $query->past(),
                 'cancelled' => $query->cancelled(),
-                default     => null,
+                default => null,
             };
         }
         if ($request->filled('status')) {
@@ -60,7 +61,7 @@ class AppointmentController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -69,7 +70,7 @@ class AppointmentController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$appointment) {
+        if (! $appointment) {
             return response()->json(['error' => 'Appointment not found.'], 404);
         }
 
@@ -95,7 +96,7 @@ class AppointmentController extends Controller
             $session = ClinicSession::where('id', $validated['clinic_session_id'])
                 ->lockForUpdate()->first();
 
-            if (!$session) {
+            if (! $session) {
                 return response()->json([
                     'error' => 'Session not found.',
                     'code' => 'SESSION_NOT_FOUND',
@@ -104,7 +105,7 @@ class AppointmentController extends Controller
 
             // Phase 17 idempotency: replay of an identical request returns the
             // original appointment instead of creating a duplicate.
-            if (!empty($validated['idempotency_key'])) {
+            if (! empty($validated['idempotency_key'])) {
                 $existing = Appointment::where('user_id', $request->user()->id)
                     ->where('idempotency_key', $validated['idempotency_key'])
                     ->first();
@@ -137,7 +138,15 @@ class AppointmentController extends Controller
                 ], 422);
             }
 
-            if (!$session->is_bookable) {
+            if ($session->max_appointments !== null
+                && $session->booked_appointments >= $session->max_appointments) {
+                return response()->json([
+                    'error' => 'No available slots remain for this session.',
+                    'code' => 'NO_CAPACITY',
+                ], 422);
+            }
+
+            if (! $session->is_bookable) {
                 return response()->json([
                     'error' => 'This session is no longer available for booking.',
                     'code' => 'SESSION_NOT_BOOKABLE',
@@ -145,7 +154,7 @@ class AppointmentController extends Controller
             }
 
             $existing = Appointment::where('clinic_session_id', $session->id)
-                ->where('start_time', $validated['start_time'] . ':00')
+                ->where('start_time', $validated['start_time'].':00')
                 ->whereIn('status', ['pending', 'confirmed'])
                 ->lockForUpdate()->exists();
 
@@ -156,15 +165,7 @@ class AppointmentController extends Controller
                 ], 409);
             }
 
-            if ($session->max_appointments !== null
-                && $session->booked_appointments >= $session->max_appointments) {
-                return response()->json([
-                    'error' => 'No available slots remain for this session.',
-                    'code' => 'NO_CAPACITY',
-                ], 422);
-            }
-
-            $start = Carbon::parse($session->session_date->format('Y-m-d') . ' ' . $validated['start_time']);
+            $start = Carbon::parse($session->session_date->format('Y-m-d').' '.$validated['start_time']);
             $end = $start->copy()->addMinutes($session->slot_duration_minutes);
 
             $appointment = Appointment::create([
@@ -211,29 +212,29 @@ class AppointmentController extends Controller
         $user = $request->user();
         $apt = Appointment::where('id', $id)->where('user_id', $user->id)->first();
 
-        if (!$apt) {
+        if (! $apt) {
             return response()->json(['error' => 'Appointment not found.'], 404);
         }
 
         if (in_array($apt->status, ['completed', 'cancelled'])) {
             return response()->json([
-                'error' => 'Cannot modify a ' . $apt->status . ' appointment.',
+                'error' => 'Cannot modify a '.$apt->status.' appointment.',
             ], 422);
         }
 
         $validated = $request->validate([
-            'new_session_id'     => 'nullable|integer|exists:clinic_sessions,id',
-            'new_start_time'     => 'nullable|date_format:H:i',
+            'new_session_id' => 'nullable|integer|exists:clinic_sessions,id',
+            'new_start_time' => 'nullable|date_format:H:i',
             'cancellation_reason' => 'nullable|string|max:500',
         ]);
 
         // ── RESCHEDULING ────────────────────────────────────────────
-        if (!empty($validated['new_session_id']) && !empty($validated['new_start_time'])) {
+        if (! empty($validated['new_session_id']) && ! empty($validated['new_start_time'])) {
             return $this->reschedule($apt, $validated, $request);
         }
 
         // ── CANCELLATION (via PATCH) ────────────────────────────────
-        if (!empty($validated['cancellation_reason'])) {
+        if (! empty($validated['cancellation_reason'])) {
             return $this->cancelViaUpdate($apt, $validated, $request);
         }
 
@@ -248,10 +249,10 @@ class AppointmentController extends Controller
     private function reschedule(Appointment $apt, array $validated, Request $request)
     {
         $newSession = ClinicSession::find($validated['new_session_id']);
-        if (!$newSession) {
+        if (! $newSession) {
             return response()->json([
                 'error' => 'The selected clinic session is not available.',
-                'code'  => 'SESSION_NOT_AVAILABLE',
+                'code' => 'SESSION_NOT_AVAILABLE',
             ], 422);
         }
 
@@ -266,7 +267,7 @@ class AppointmentController extends Controller
         } catch (SlotConflictException $e) {
             return response()->json([
                 'error' => $e->getMessage(),
-                'code'  => 'SLOT_TAKEN',
+                'code' => 'SLOT_TAKEN',
             ], 409);
         } catch (\RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 403);
@@ -275,8 +276,9 @@ class AppointmentController extends Controller
         }
 
         $updated->load(['doctor.specialties', 'facility', 'clinicSession', 'payments']);
+
         return response()->json([
-            'data'    => $this->formatAppointment($updated),
+            'data' => $this->formatAppointment($updated),
             'message' => 'Appointment rescheduled successfully.',
         ]);
     }
@@ -290,8 +292,9 @@ class AppointmentController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json([
-            'data'    => $this->formatAppointment($updated),
+            'data' => $this->formatAppointment($updated),
             'message' => 'Appointment cancelled.',
         ]);
     }
@@ -309,7 +312,7 @@ class AppointmentController extends Controller
         ]);
 
         $appointment = Appointment::where('id', $id)->first();
-        if (!$appointment) {
+        if (! $appointment) {
             return response()->json(['error' => 'Appointment not found.'], 404);
         }
 
@@ -323,7 +326,6 @@ class AppointmentController extends Controller
 
         return response()->json(['message' => 'Appointment cancelled successfully.']);
     }
-
 
     /**
      * Format an appointment for API response.
@@ -390,7 +392,7 @@ class AppointmentController extends Controller
 
     private function paymentSummary(Appointment $a): array
     {
-        $last = $a->payments instanceof \Illuminate\Support\Collection
+        $last = $a->payments instanceof Collection
             ? $a->payments->sortByDesc('id')->first()
             : null;
 

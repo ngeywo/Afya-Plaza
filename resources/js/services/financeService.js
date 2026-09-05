@@ -150,4 +150,3 @@ export const financeService = {
         return response.data;
     },
 };
-};

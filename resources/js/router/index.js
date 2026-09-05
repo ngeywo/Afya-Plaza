@@ -100,9 +100,6 @@ const routes = [
             { path: "payouts", name: "admin-payouts", component: () => import("../views/super-admin/Payouts.vue"), meta: { title: "Payouts", requiresSuperAdmin: true } },
         ],
     },
-            { path: "finance", name: "admin-finance", component: AdminFinance, meta: { title: "Marketplace Finance", requiresSuperAdmin: true } },
-        ],
-    },
 
     // 404 — catch-all must be last
     { path: "/:pathMatch(.*)*", name: "not-found", component: NotFound, meta: { title: "Page not found" } },

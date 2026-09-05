@@ -4,30 +4,20 @@ namespace App\Providers;
 
 use App\Events\AppointmentBooked;
 use App\Events\AppointmentCancelled;
-use App\Events\ClinicSessionCancelled;
-use App\Events\ClinicSessionChanged;
-use App\Events\ClinicSessionConfirmed;
 use App\Listeners\NotifyAppointmentPatient;
-use App\Listeners\NotifyDoctorFollowers;
-use App\Listeners\NotifySessionCancelledPatients;
-use App\Listeners\NotifySessionChangedPatients;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     /**
      * The event to listener mappings for the application.
+     *
+     * ClinicSession* and session notifications are auto-discovered from
+     * app/Listeners (handle() convention). These two Appointment events need
+     * explicit method binding (onBooked/onCancelled) because a single listener
+     * class handles multiple events.
      */
     protected $listen = [
-        ClinicSessionConfirmed::class => [
-            NotifyDoctorFollowers::class,
-        ],
-        ClinicSessionChanged::class => [
-            NotifySessionChangedPatients::class,
-        ],
-        ClinicSessionCancelled::class => [
-            NotifySessionCancelledPatients::class,
-        ],
         AppointmentBooked::class => [
             [NotifyAppointmentPatient::class, 'onBooked'],
         ],
@@ -38,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        //
+        parent::register();
     }
 
     public function boot(): void
