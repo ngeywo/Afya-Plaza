@@ -9,26 +9,44 @@
                 <v-spacer></v-spacer>
                 <v-btn variant="text" to="/search" prepend-icon="mdi-magnify" class="d-none d-md-flex">Find Doctors</v-btn>
                 <v-btn variant="text" to="/search?specialty=orthopaedics" class="d-none d-md-flex">Specialties</v-btn>
+                <v-btn variant="text" to="/my-doctors" prepend-icon="mdi-doctor" class="d-none d-md-flex" v-if="auth.isAuthenticated">My Doctors</v-btn>
                 <v-btn variant="text" to="/my-appointments" prepend-icon="mdi-calendar-check" class="d-none d-md-flex" v-if="auth.isAuthenticated">My Appointments</v-btn>
+
+                <!-- Not authenticated -->
                 <template v-if="!auth.isAuthenticated">
                     <v-btn variant="text" to="/login">Sign in</v-btn>
                     <v-btn color="primary" variant="flat" to="/register" class="ml-2">Sign up</v-btn>
                 </template>
+
+                <!-- Authenticated -->
                 <template v-else>
+                    <NotificationBell v-if="auth.isPatient" class="mr-1" />
+                    <v-btn v-if="auth.isDoctor" color="primary" variant="tonal" to="/doctor/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-doctor">Doctor Workspace</v-btn>
+                    <v-btn v-if="auth.isFacility" color="secondary" variant="tonal" to="/facility/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-hospital-building">Facility Workspace</v-btn>
+                    <v-btn v-if="auth.isSuperAdmin" color="secondary" variant="tonal" to="/admin/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-shield-account">Control Centre</v-btn>
                     <v-menu>
                         <template v-slot:activator="{ props }">
                             <v-btn icon v-bind="props"><v-avatar size="32" color="primary"><span class="text-white font-weight-bold">{{ userInitials }}</span></v-avatar></v-btn>
                         </template>
-                        <v-list>
-                            <v-list-item><v-list-item-title class="font-weight-medium">{{ auth.user?.name }}</v-list-item-title><v-list-item-subtitle class="text-caption">{{ (auth.user?.roles || []).join(", ") }}</v-list-item-subtitle></v-list-item>
+                        <v-list density="compact">
+                            <v-list-item>
+                                <v-list-item-title class="font-weight-medium">{{ auth.user?.name }}</v-list-item-title>
+                                <v-list-item-subtitle class="text-caption">{{ (auth.user?.roles || []).join(", ") }}</v-list-item-subtitle>
+                            </v-list-item>
                             <v-divider></v-divider>
+                            <v-list-item v-if="auth.isDoctor" to="/doctor/dashboard" prepend-icon="mdi-doctor"><v-list-item-title>Doctor Workspace</v-list-item-title></v-list-item>
+                            <v-list-item v-if="auth.isFacility" to="/facility/dashboard" prepend-icon="mdi-hospital-building"><v-list-item-title>Facility Workspace</v-list-item-title></v-list-item>
+                            <v-list-item v-if="auth.isSuperAdmin" to="/admin/dashboard" prepend-icon="mdi-shield-account"><v-list-item-title>Control Centre</v-list-item-title></v-list-item>
+                            <v-list-item v-if="auth.isPatient" to="/my-doctors" prepend-icon="mdi-doctor"><v-list-item-title>My Doctors</v-list-item-title></v-list-item>
                             <v-list-item to="/my-appointments" prepend-icon="mdi-calendar-check"><v-list-item-title>My Appointments</v-list-item-title></v-list-item>
+                            <v-divider></v-divider>
                             <v-list-item @click="handleLogout" prepend-icon="mdi-logout"><v-list-item-title>Sign out</v-list-item-title></v-list-item>
                         </v-list>
                     </v-menu>
                 </template>
             </v-container>
         </v-app-bar>
+
         <v-main class="bg-surface">
             <router-view v-slot="{ Component }">
                 <transition name="fade" mode="out-in">
@@ -36,6 +54,7 @@
                 </transition>
             </router-view>
         </v-main>
+
         <v-footer color="surface" class="border-t py-8">
             <v-container>
                 <v-row>
@@ -44,7 +63,7 @@
                             <v-icon icon="mdi-stethoscope" color="primary" size="24" class="mr-2"></v-icon>
                             <span class="text-h6 font-weight-bold">Afya Plaza</span>
                         </div>
-                        <p class="text-body-2 text-medium-emphasis">The doctor-centric healthcare marketplace. Find where your doctor is practicing today.</p>
+                        <p class="text-body-2 text-medium-emphasis">The doctor-centric healthcare marketplace.</p>
                     </v-col>
                     <v-col cols="6" md="2">
                         <div class="text-subtitle-2 font-weight-bold mb-2">For Patients</div>
@@ -55,13 +74,7 @@
                     </v-col>
                     <v-col cols="6" md="2">
                         <div class="text-subtitle-2 font-weight-bold mb-2">For Doctors</div>
-                        <ul class="list-unstyled">
-                            <li><a href="#" class="text-body-2 text-medium-emphasis">List Your Practice</a></li>
-                        </ul>
-                    </v-col>
-                    <v-col cols="12" md="4">
-                        <div class="text-subtitle-2 font-weight-bold mb-2">Stay Updated</div>
-                        <p class="text-body-2 text-medium-emphasis mb-2">Get notified when your doctor is in town.</p>
+                        <ul class="list-unstyled"><li><a href="#" class="text-body-2 text-medium-emphasis">List Your Practice</a></li></ul>
                     </v-col>
                 </v-row>
                 <v-divider class="my-6"></v-divider>
@@ -75,6 +88,7 @@
 import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "./stores/authStore";
+import NotificationBell from "./components/NotificationBell.vue";
 
 const auth = useAuthStore();
 const router = useRouter();

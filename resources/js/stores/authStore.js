@@ -8,6 +8,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     const isAuthenticated = computed(() => !!token.value);
     const isPatient = computed(() => user.value?.roles?.includes('patient') || false);
+    const isDoctor = computed(() => user.value?.roles?.includes('doctor') || false);
+    const isFacility = computed(() =>
+        user.value?.roles?.some((r) => ['facility-admin', 'facility-staff'].includes(r)) || false
+    );
+    const isSuperAdmin = computed(() => user.value?.roles?.includes('super-admin') || false);
+    const roles = computed(() => user.value?.roles || []);
 
     async function login(credentials) {
         const data = await authService.login(credentials);
@@ -43,5 +49,5 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('auth_token');
     }
 
-    return { user, token, isAuthenticated, isPatient, login, register, fetchMe, logout };
+    return { user, token, isAuthenticated, isPatient, isDoctor, isFacility, isSuperAdmin, roles, login, register, fetchMe, logout };
 });

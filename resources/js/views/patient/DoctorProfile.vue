@@ -3,36 +3,59 @@
         <v-container>
             <div v-if="loading"><v-skeleton-loader type="article"></v-skeleton-loader></div>
             <template v-else-if="doctor">
-                <div class="d-flex flex-wrap align-start gap-6 mb-8">
-                    <v-avatar size="100" color="primary"><span class="text-h4 font-weight-bold text-white">{{ initials }}</span></v-avatar>
+                <!-- Doctor Header -->
+                <div class="d-flex flex-wrap align-start gap-6 mb-6">
+                    <v-avatar size="100" color="primary">
+                        <v-img v-if="doctor.avatar" :src="doctor.avatar" :alt="doctor.name"></v-img>
+                        <span v-else class="text-h4 font-weight-bold text-white">{{ initials }}</span>
+                    </v-avatar>
                     <div class="flex-grow-1">
                         <div class="d-flex align-center gap-2 mb-2 flex-wrap">
-                            <h1 class="text-h4 font-weight-bold">{{ doctor.name }}</h1>
-                            <v-chip v-if="doctor.is_verified" color="success" variant="tonal" size="small">Verified</v-chip>
+                            <h1 class="text-h4 font-weight-bold" style="color:#0F172A">{{ doctor.name }}</h1>
+                            <v-chip v-if="doctor.is_verified" color="success" variant="tonal" size="small" prepend-icon="mdi-check-decagram">Verified Doctor</v-chip>
                         </div>
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             <v-chip v-for="s in doctor.specialties" :key="s.name" :prepend-icon="s.icon" variant="tonal" size="small">{{ s.name }}</v-chip>
                         </div>
                         <p class="text-body-2 text-medium-emphasis">{{ doctor.qualifications }} - {{ doctor.years_of_experience }}+ years</p>
                     </div>
-                    <v-btn v-if="hasAvailableSessions" color="primary" size="x-large" prepend-icon="mdi-calendar-plus" @click="bookingOpen = true">Book Appointment</v-btn>
+                    <div class="ml-auto d-flex align-start pt-1">
+                        <!-- Phase 10: Follow button (patients only) -->
+                        <FollowDoctorButton
+                            v-if="auth.isPatient"
+                            :doctor-id="doctor.id"
+                            :initial-following="doctor.is_following || false"
+                        />
+                    </div>
                 </div>
-                <v-alert v-if="!hasAvailableSessions" type="info" variant="tonal" class="mb-6">No open clinic sessions in the next 2 weeks. Check back later.</v-alert>
-                <h2 class="text-h5 font-weight-bold mb-4"><v-icon icon="mdi-calendar-clock" class="mr-2" color="primary"></v-icon>Upcoming Clinics</h2>
-                <v-row v-if="doctor.sessions && doctor.sessions.length" class="mb-6">
-                    <v-col v-for="s in doctor.sessions" :key="s.id" cols="12" sm="6" md="4">
+                <!-- Phase 8: WHERE TO FIND THIS DOCTOR (DoctorClinicFinder component) -->
+                <DoctorClinicFinder :doctor="doctor" class="mb-6" />
+
+                <h2 class="text-h5 font-weight-bold mb-4" style="color:#0F172A"><v-icon icon="mdi-calendar-clock" class="mr-2" color="primary"></v-icon>Upcoming Clinics</h2>
+                <v-row v-if="upcomingClinics.length" class="mb-6">
+                    <v-col v-for="s in upcomingClinics" :key="s.id" cols="12" sm="6" md="4">
                         <v-card variant="outlined" class="pa-4 h-100">
-                            <div class="d-flex align-center mb-2">
-                                <v-avatar color="primary" variant="tonal" size="44"><div class="text-center"><div class="text-caption">{{ formatDay(s.session_date).slice(0,3) }}</div><div class="text-body-2 font-weight-bold">{{ new Date(s.session_date).getDate() }}</div></div></v-avatar>
-                                <div class="ml-3">
-                                    <div class="text-subtitle-2 font-weight-bold">{{ formatDate(s.session_date) }}</div>
-                                    <div class="text-caption text-medium-emphasis">{{ s.start_time }} - {{ s.end_time }}</div>
+                            <div class="d-flex align-center justify-space-between mb-2">
+                                <div class="d-flex align-center">
+                                    <v-avatar color="primary" variant="tonal" size="44">
+                                        <div class="text-center">
+                                            <div class="text-caption">{{ s.day.slice(0,3) }}</div>
+                                            <div class="text-body-2 font-weight-bold">{{ s.day_short?.split(',')[1]?.trim() || '' }}</div>
+                                        </div>
+                                    </v-avatar>
+                                    <div class="ml-3">
+                                        <div class="text-subtitle-2 font-weight-bold">{{ s.day }}</div>
+                                        <div class="text-caption text-medium-emphasis">{{ s.start_time }} - {{ s.end_time }}</div>
+                                    </div>
                                 </div>
+                                <v-chip size="x-small" variant="tonal" :color="s.is_confirmed ? 'success' : 'warning'">
+                                    {{ s.is_confirmed ? 'Confirmed' : 'Pending' }}
+                                </v-chip>
                             </div>
                             <v-divider class="my-2"></v-divider>
                             <div class="d-flex align-center mb-2"><v-icon icon="mdi-hospital-building" size="small" color="medium-emphasis" class="mr-2"></v-icon><span class="text-body-2">{{ s.facility.name }}</span></div>
                             <div class="d-flex align-center mb-3"><v-icon icon="mdi-map-marker" size="small" color="medium-emphasis" class="mr-2"></v-icon><span class="text-body-2 text-medium-emphasis">{{ s.facility.city }}</span></div>
-                            <v-chip :color="slotsLeft(s) > 0 ? 'success' : 'error'" size="small" variant="tonal" :prepend-icon="slotsLeft(s) > 0 ? 'mdi-check-circle' : 'mdi-close-circle'">{{ slotsLeft(s) }} / {{ s.max_appointments }} slots</v-chip>
+                            <v-chip :color="s.available_slots > 0 ? 'success' : 'error'" size="small" variant="tonal" :prepend-icon="s.available_slots > 0 ? 'mdi-check-circle' : 'mdi-close-circle'">{{ s.available_slots }} / {{ s.max_appointments }} slots</v-chip>
                         </v-card>
                     </v-col>
                 </v-row>
@@ -54,6 +77,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useDoctorStore } from "../../stores/doctorStore";
 import { useAuthStore } from "../../stores/authStore";
 import BookingDialog from "../../components/BookingDialog.vue";
+import DoctorClinicFinder from "../../components/patient/DoctorClinicFinder.vue";
+import FollowDoctorButton from "../../components/FollowDoctorButton.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -65,11 +90,10 @@ const bookingOpen = ref(false);
 
 const doctor = computed(() => store.currentDoctor);
 const initials = computed(() => doctor.value ? doctor.value.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "");
-const hasAvailableSessions = computed(() => (doctor.value?.sessions || []).some(s => s.is_active && s.booked_appointments < s.max_appointments));
-
-function slotsLeft(s) { return Math.max(0, s.max_appointments - s.booked_appointments); }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString("en-KE", { weekday: "short", day: "numeric", month: "short" }) : ""; }
-function formatDay(d) { return d ? new Date(d).toLocaleDateString("en-KE", { weekday: "long" }) : ""; }
+const upcomingClinics = computed(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (doctor.value?.upcoming_sessions || []).filter(s => s.session_date >= today).slice(0, 6);
+});
 
 function handleBooked() {
     store.find(route.params.slug);
@@ -78,9 +102,13 @@ function handleBooked() {
 
 async function load() {
     loading.value = true;
-    try { await store.find(route.params.slug); }
-    finally { loading.value = false; }
+    try {
+        await store.find(route.params.slug);
+    } finally {
+        loading.value = false;
+    }
 }
+
 onMounted(load);
 watch(() => route.params.slug, load);
 </script>

@@ -22,6 +22,16 @@ class DoctorFacility extends Model
         'started_at',
         'ended_at',
         'notes',
+        // Phase 13: Governance
+        'status',
+        'invited_by',
+        'approved_by',
+        'approved_at',
+        'declined_at',
+        'decline_reason',
+        'ended_at_governance',
+        'ended_by',
+        'notes_governance',
     ];
 
     protected $casts = [
@@ -30,6 +40,10 @@ class DoctorFacility extends Model
         'is_active' => 'boolean',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
+        'status' => \App\Enums\DoctorRelationshipStatus::class,
+        'approved_at' => 'datetime',
+        'declined_at' => 'datetime',
+        'ended_at_governance' => 'datetime',
     ];
 
     public function doctor(): BelongsTo
@@ -50,5 +64,42 @@ class DoctorFacility extends Model
     public function exceptions(): HasMany
     {
         return $this->hasMany(DoctorScheduleException::class);
+    }
+
+    // ─── Phase 13: Governance Relations ─────────────────────────────────────────
+
+    public function invitedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'invited_by');
+    }
+
+    public function approvedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function endedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'ended_by');
+    }
+
+    // ─── Phase 13: Convenience Helpers ──────────────────────────────────────────
+
+    /**
+     * Whether this relationship is active and approved by both parties.
+     */
+    public function isAuthoritative(): bool
+    {
+        return $this->status?->isActive() === true;
+    }
+
+    /**
+     * Whether a clinic session can be created/booked through this relationship.
+     */
+    public function canHostSession(): bool
+    {
+        return $this->isAuthoritative()
+            && $this->accepts_appointments
+            && $this->is_active;
     }
 }

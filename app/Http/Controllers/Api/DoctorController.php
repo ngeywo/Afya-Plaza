@@ -25,9 +25,9 @@ class DoctorController extends Controller
         if ($request->filled('county_id')) {
             $query->whereHas('facilities', fn ($q) => $q->whereHas('county', fn ($cq) => $cq->where('counties.id', $request->county_id)));
         }
-        if ($request->boolean('available_only') || $request->filled('date')) {
-            $query->whereHas('clinicSessions', fn ($q) => $q->where('session_date', $date->toDateString())->where('status', 'confirmed'));
-        }
+        // Section 3: Search is session-driven. A doctor should only appear if they have
+        // an actual confirmed session on the requested date. Section 27 business test.
+        $query->whereHas('clinicSessions', fn ($q) => $q->where('session_date', $date->toDateString())->where('status', 'confirmed'));
 
         $doctors = $query->get();
 

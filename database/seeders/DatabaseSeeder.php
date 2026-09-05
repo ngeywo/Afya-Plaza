@@ -10,11 +10,13 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolesAndPermissionsSeeder::class,
+            SuperAdminSeeder::class,
             SpecialtiesAndCountiesSeeder::class,
             UsersSeeder::class,
             FacilitiesSeeder::class,
             DoctorsSeeder::class,
             ClinicSessionsSeeder::class,
+            FacilityAdminTestSeeder::class,
         ]);
     }
 }
