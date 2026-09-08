@@ -1,12 +1,8 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-4">
-      <div>
-        <h1 class="text-h5 font-weight-bold text-red-darken-2">Marketplace Finance</h1>
-        <p class="text-body-2 text-medium-emphasis mb-0">Platform revenue, payouts, and refunds.</p>
-      </div>
-      <v-btn variant="outlined" size="small" prepend-icon="mdi-refresh" @click="loadAll" :loading="loading">Refresh</v-btn>
-    </div>
+<AppPageHeader title="Marketplace Finance" subtitle="Platform revenue, payouts, and refunds." icon="mdi-chart-box">
+      <template #actions><v-btn variant="outlined" size="small" prepend-icon="mdi-refresh" @click="loadAll" :loading="loading">Refresh</v-btn></template>
+    </AppPageHeader>
 
     <v-row dense>
       <v-col cols="12" sm="6" md="3">
@@ -92,6 +88,7 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from "vue";
 import { financeService } from "../../services/financeService";
+import AppPageHeader from "../../components/ui/AppPageHeader.vue";
 
 const tab = ref("payments");
 const loading = ref(false);

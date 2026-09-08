@@ -31,14 +31,27 @@ class DoctorSubscription extends Model
     ];
 
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_PENDING = 'pending';
 
-    public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
-    public function plan(): BelongsTo { return $this->belongsTo(Plan::class); }
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class);
+    }
 
-    public function scopeActive($q) { return $q->where('status', self::STATUS_ACTIVE); }
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
+    public function scopeActive($q)
+    {
+        return $q->where('status', self::STATUS_ACTIVE);
+    }
 
     public function getCommissionRateAttribute(): string
     {

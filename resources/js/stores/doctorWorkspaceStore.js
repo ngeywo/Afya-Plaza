@@ -11,6 +11,7 @@ export const useDoctorWorkspaceStore = defineStore('doctorWorkspace', () => {
     const profile = ref(null);
     const facilities = ref([]);
     const clinicDay = ref(null);
+    const subscription = ref(null);
     const loading = ref(false);
     const error = ref(null);
     const success = ref(null);
@@ -110,12 +111,92 @@ export const useDoctorWorkspaceStore = defineStore('doctorWorkspace', () => {
         }
     }
 
+    // ─── Onboarding & session management ────────────────────────────────────────
+
+    async function loadOnboardingStatus() {
+        return await doctorWorkspaceService.getOnboardingStatus();
+    }
+
+    async function completeOnboarding(data) {
+        clearMessages();
+        try {
+            const res = await doctorWorkspaceService.createOnboarding(data);
+            if (profile.value) profile.value = { ...profile.value, ...res };
+            success.value = res?.message || 'Profile created';
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to create profile';
+            throw e;
+        }
+    }
+
+    async function createSession(data) {
+        clearMessages();
+        try {
+            const res = await doctorWorkspaceService.createSession(data);
+            success.value = 'Clinic session created';
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || e.response?.data?.message || 'Failed to create session';
+            throw e;
+        }
+    }
+
+    async function confirmSession(id) {
+        clearMessages();
+        try {
+            const res = await doctorWorkspaceService.confirmSession(id);
+            success.value = 'Session confirmed';
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to confirm session';
+            throw e;
+        }
+    }
+
+    async function cancelSession(id, reason) {
+        clearMessages();
+        try {
+            const res = await doctorWorkspaceService.cancelSession(id, reason);
+            success.value = 'Session cancelled';
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to cancel session';
+            throw e;
+        }
+    }
+
+    // ─── Plan subscription ──────────────────────────────────────────────────────
+
+    async function fetchSubscription() {
+        loading.value = true; error.value = null;
+        try { subscription.value = await doctorWorkspaceService.getSubscription(); }
+        catch (e) { error.value = e.response?.data?.error || 'Failed to load subscription'; }
+        finally { loading.value = false; }
+    }
+
+    async function subscribe(planId) {
+        clearMessages();
+        try {
+            const res = await doctorWorkspaceService.subscribe(planId);
+            await fetchSubscription();
+            success.value = res?.message || 'Subscription updated';
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to update subscription';
+            throw e;
+        }
+    }
+
     return {
         dashboard, clinics, schedule, appointments, profile, facilities,
-        clinicDay, loading, error, success,
+        clinicDay, subscription, loading, error, success,
         fetchDashboard, fetchClinics, fetchSchedule, fetchAppointments,
         fetchProfile, updateProfile, fetchFacilities,
         fetchClinicDay, startConsultationAppointment, completeConsultationAppointment,
+        loadOnboardingStatus, completeOnboarding,
+        createSession, confirmSession, cancelSession,
+        fetchSubscription, subscribe,
         clearMessages,
     };
 });

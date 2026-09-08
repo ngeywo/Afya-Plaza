@@ -1,12 +1,192 @@
-/* Bootstrap CSS */
+/* Bootstrap CSS – provides gap-* spacing utilities used across Vue templates */
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
-/* Custom styles */
+/* ─────────────────────────────────────────────────────────────
+   AFYA PLAZA — GLOBAL DESIGN TOKENS
+   One design language across every workspace.
+   ───────────────────────────────────────────────────────────── */
 :root {
-    --primary-color: #0F766E;
-    --secondary-color: #2563EB;
+    /* Brand & semantic palette (mirrors Vuetify theme in app.js) */
+    --brand-primary: #0f766e;
+    --brand-secondary: #475569;
+    --brand-info: #2563eb;
+    --brand-success: #16a34a;
+    --brand-warning: #d97706;
+    --brand-error: #dc2626;
+
+    --ink-900: #0f172a;
+    --ink-700: #334155;
+    --ink-500: #64748b;
+    --ink-400: #94a3b8;
+
+    --surface-0: #ffffff;
+    --surface-1: #f8fafc;
+    --surface-2: #f1f5f9;
+
+    /* Spacing scale */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+
+    /* Elevation */
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-pop: 0 12px 32px rgba(15, 23, 42, 0.12);
+
+    /* Borders */
+    --border-soft: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   BASE TYPOGRAPHY
+   ───────────────────────────────────────────────────────────── */
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--ink-900);
+    background-color: var(--surface-2);
+}
+
+.v-application {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Readable, professional heading weight */
+.v-application h1,
+.v-application h2,
+.v-application h3,
+.v-application h4,
+.v-application h5,
+.v-application h6,
+.v-application .text-h1,
+.v-application .text-h2,
+.v-application .text-h3,
+.v-application .text-h4,
+.v-application .text-h5,
+.v-application .text-h6 {
+    letter-spacing: -0.01em;
+}
+
+/* Typography helpers */
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink-900);
+}
+
+.page-subtitle {
+    color: var(--ink-500);
+    font-size: 0.925rem;
+    line-height: 1.5;
+}
+
+.section-title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-400);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   APPLICATION SHELL
+   ───────────────────────────────────────────────────────────── */
+/* Sidebar group labels – replaces scattered inline letter-spacing */
+.nav-group-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-400) !important;
+    padding: 0 12px 4px !important;
+}
+
+/* Refined active / hover state for navigation items */
+.v-navigation-drawer .v-list .v-list-item--active {
+    background: rgb(var(--v-theme-primary) / 0.09) !important;
+    color: rgb(var(--v-theme-primary)) !important;
+    font-weight: 600;
+}
+
+.v-navigation-drawer .v-list .v-list-item--active .v-list-item-icon,
+.v-navigation-drawer .v-list .v-list-item--active .v-icon {
+    color: rgb(var(--v-theme-primary)) !important;
+}
+
+.v-navigation-drawer .v-list .v-list-item:hover {
+    background: rgb(var(--v-theme-primary) / 0.05);
+}
+
+/* Brand mark in the drawer – consistent across workspaces */
+.drawer-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.drawer-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: rgb(var(--v-theme-primary) / 0.12);
+    color: rgb(var(--v-theme-primary));
+}
+
+/* Page fade transition */
+.page-fade-enter-active,
+.page-fade-leave-active {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.page-fade-enter-from {
+    opacity: 0;
+    transform: translateY(4px);
+}
+.page-fade-leave-to {
+    opacity: 0;
+}
+
+/* Soft, intentional scrollbars */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 23, 42, 0.18) transparent;
+}
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.16);
+    border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Keyboard focus visibility */
+:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary) / 0.6);
+    outline-offset: 2px;
+}
+
+/* Text selection */
+::selection {
+    background: rgb(var(--v-theme-primary) / 0.18);
 }

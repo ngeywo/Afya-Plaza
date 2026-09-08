@@ -88,8 +88,12 @@ async function handleLogin() {
     loading.value = true;
     try {
         await auth.login({ email: form.email, password: form.password });
-        const redirect = router.currentRoute.value.query.redirect || '/';
-        router.push(redirect);
+        const redirect = router.currentRoute.value.query.redirect;
+        if (redirect) { router.push(redirect); return; }
+        if (auth.isPlatformOperator) { router.push("/admin/dashboard"); return; }
+        if (auth.isDoctor) { router.push("/doctor/dashboard"); return; }
+        if (auth.isFacility) { router.push("/facility/dashboard"); return; }
+        router.push("/");
     } catch (e) {
         if (e.response?.data?.message) {
             error.value = e.response.data.message;

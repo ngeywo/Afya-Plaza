@@ -11,13 +11,16 @@ class ClinicSession extends Model
 {
     use HasFactory;
 
-    public const STATUS_PENDING   = 'pending';
+    public const STATUS_PENDING = 'pending';
+
     public const STATUS_CONFIRMED = 'confirmed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_COMPLETED = 'completed';
 
     protected $fillable = [
-        'doctor_id', 'facility_id', 'facility_location_id', 'doctor_facility_schedule_id',
+        'doctor_id', 'facility_id', 'doctor_facility_id', 'facility_location_id', 'doctor_facility_schedule_id',
         'session_date', 'start_time', 'end_time', 'slot_duration_minutes',
         'max_appointments', 'booked_appointments', 'consultation_fee',
         'status', 'doctor_confirmation', 'doctor_confirmed_at',
@@ -38,21 +41,63 @@ class ClinicSession extends Model
         'consultation_fee' => 'decimal:2',
     ];
 
-    public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
-    public function facility(): BelongsTo { return $this->belongsTo(Facility::class); }
-    public function facilityLocation(): BelongsTo { return $this->belongsTo(FacilityLocation::class); }
-    public function schedule(): BelongsTo { return $this->belongsTo(DoctorFacilitySchedule::class, 'doctor_facility_schedule_id'); }
-    public function availabilitySlots(): HasMany { return $this->hasMany(AvailabilitySlot::class); }
-    public function appointments(): HasMany { return $this->hasMany(Appointment::class); }
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class);
+    }
+
+    public function facility(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class);
+    }
+
+    public function doctorFacility(): BelongsTo
+    {
+        return $this->belongsTo(DoctorFacility::class);
+    }
+
+    public function facilityLocation(): BelongsTo
+    {
+        return $this->belongsTo(FacilityLocation::class);
+    }
+
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(DoctorFacilitySchedule::class, 'doctor_facility_schedule_id');
+    }
+
+    public function availabilitySlots(): HasMany
+    {
+        return $this->hasMany(AvailabilitySlot::class);
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
 
     // Phase 13: Governance actor relations
-    public function cancelledByUser(): BelongsTo { return $this->belongsTo(User::class, 'cancelled_by'); }
-    public function doctorConfirmedByUser(): BelongsTo { return $this->belongsTo(User::class, 'confirmed_by_doctor_user'); }
-    public function facilityConfirmedByUser(): BelongsTo { return $this->belongsTo(User::class, 'confirmed_by_facility_user'); }
+    public function cancelledByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function doctorConfirmedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by_doctor_user');
+    }
+
+    public function facilityConfirmedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by_facility_user');
+    }
 
     public function getAvailableSlotsAttribute(): int
     {
-        if ($this->max_appointments === null) return 999;
+        if ($this->max_appointments === null) {
+            return 999;
+        }
+
         return max(0, $this->max_appointments - $this->booked_appointments);
     }
 
@@ -92,10 +137,13 @@ class ClinicSession extends Model
      */
     public function getRelationshipIsAuthoritativeAttribute(): bool
     {
-        if (!$this->doctor || !$this->facility) return false;
-        $rel = \App\Models\DoctorFacility::where('doctor_id', $this->doctor_id)
+        if (! $this->doctor || ! $this->facility) {
+            return false;
+        }
+        $rel = DoctorFacility::where('doctor_id', $this->doctor_id)
             ->where('facility_id', $this->facility_id)
             ->first();
+
         return $rel ? $rel->isAuthoritative() : false;
     }
 }

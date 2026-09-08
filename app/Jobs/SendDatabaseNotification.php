@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\User;
+use App\Notifications\MarketplaceNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,6 +21,7 @@ class SendDatabaseNotification implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 10;
 
     public function __construct(
@@ -30,13 +32,14 @@ class SendDatabaseNotification implements ShouldQueue
     public function handle(): void
     {
         $user = User::find($this->userId);
-        if (!$user) {
+        if (! $user) {
             Log::warning("SendDatabaseNotification: user {$this->userId} not found, skipping.");
+
             return;
         }
 
         // Laravel's built-in Notifiable trait persists into the polymorphic
         // notifications table. We use that rather than writing directly.
-        $user->notify(new \App\Notifications\MarketplaceNotification($this->payload));
+        $user->notify(new MarketplaceNotification($this->payload));
     }
 }

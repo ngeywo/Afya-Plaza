@@ -84,7 +84,7 @@ const suggestedPaths = computed(() => {
         if (auth.isFacility) {
             items.push({ to: { name: 'facility-dashboard' }, icon: 'mdi-hospital-building', label: 'Facility Workspace', subtitle: 'Manage your facility' });
         }
-        if (auth.isSuperAdmin) {
+        if (auth.isPlatformOperator) {
             items.push({ to: { name: 'admin-dashboard' }, icon: 'mdi-shield-account', label: 'Control Centre', subtitle: 'Admin dashboard' });
         }
     }

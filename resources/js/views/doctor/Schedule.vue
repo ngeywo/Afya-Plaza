@@ -1,15 +1,14 @@
 <template>
     <div>
-        <div class="d-flex align-center mb-6">
-            <v-icon icon="mdi-calendar-clock" color="primary" size="32" class="mr-3"></v-icon>
-            <div>
-                <h1 class="text-h5 font-weight-bold">My Schedule</h1>
-                <p class="text-body-2 text-medium-emphasis">Recurring schedule and exceptions at your facilities.</p>
-            </div>
-        </div>
+        <AppPageHeader
+            title="My Schedule"
+            subtitle="Clinic sessions are scheduled by your hospital — review and confirm them here."
+            icon="mdi-calendar-clock"
+        />
 
-        <v-progress-linear v-if="store.loading" indeterminate></v-progress-linear>
         <v-alert v-if="store.error" type="error" variant="tonal" class="mb-4" closable @click:close="store.error = null">{{ store.error }}</v-alert>
+        <v-alert v-if="store.success" type="success" variant="tonal" class="mb-4" closable @click:close="store.success = null">{{ store.success }}</v-alert>
+        <v-progress-linear v-if="store.loading" indeterminate></v-progress-linear>
 
         <template v-if="store.schedule">
             <!-- Recurring schedule per facility -->
@@ -73,22 +72,54 @@
                             <v-list-item-title class="font-weight-medium">{{ s.facility.name }}</v-list-item-title>
                             <v-list-item-subtitle>{{ s.end_time }} · {{ s.facility.city }}</v-list-item-subtitle>
                             <template #append>
-                                <v-chip :color="s.is_confirmed ? 'success' : 'warning'" size="x-small" variant="tonal">{{ s.is_confirmed ? 'Confirmed' : 'Pending' }}</v-chip>
+                                <div class="d-flex align-center ga-2">
+                                    <v-chip :color="s.is_confirmed ? 'success' : 'warning'" size="x-small" variant="tonal">{{ s.is_confirmed ? 'Confirmed' : 'Pending' }}</v-chip>
+                                    <v-btn v-if="!s.is_confirmed && s.status !== 'cancelled'" color="primary" size="small" variant="tonal"
+                                        :loading="confirming === s.id" @click="confirmSession(s)">
+                                        Confirm
+                                    </v-btn>
+                                </div>
                             </template>
                         </v-list-item>
                     </v-list>
                 </v-card>
             </div>
+
+            <v-alert v-else variant="tonal" type="info" density="comfortable" class="mt-2">
+                <template #prepend><v-icon icon="mdi-hospital-box-outline"></v-icon></template>
+                No upcoming sessions. Your hospital schedules clinic sessions for you — they will appear here once scheduled.
+            </v-alert>
         </template>
+
+        <v-snackbar v-model="snackbar" :color="snackColor" variant="tonal">{{ snackText }}</v-snackbar>
     </div>
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useDoctorWorkspaceStore } from "../../stores/doctorWorkspaceStore";
+import AppPageHeader from "../../components/ui/AppPageHeader.vue";
+import { useNotifier } from "../../composables/useNotifier";
 
 const store = useDoctorWorkspaceStore();
+const { snackbar, snackText, snackColor, notify, notifyError } = useNotifier();
+
+const confirming = ref(null);
+
 onMounted(() => { store.fetchSchedule(); });
+
+async function confirmSession(s) {
+    confirming.value = s.id;
+    try {
+        await store.confirmSession(s.id);
+        notify('Session confirmed.');
+        await store.fetchSchedule();
+    } catch (e) {
+        notifyError(e.response?.data?.error || 'Failed to confirm session');
+    } finally {
+        confirming.value = null;
+    }
+}
 
 function exceptionIcon(type) {
     return { cancelled: 'mdi-close-circle', rescheduled: 'mdi-calendar-refresh', additional: 'mdi-plus-circle', location_changed: 'mdi-map-marker' }[type] || 'mdi-information';

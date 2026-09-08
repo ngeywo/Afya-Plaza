@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Doctor;
 use App\Models\Follow;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
  * Phase 10: Patient-to-Doctor following.
@@ -28,13 +28,13 @@ class DoctorFollowController extends Controller
     public function follow(Request $request, Doctor $doctor): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
         // Reject doctors / facility admins following other doctors via this endpoint.
         // (They have a different UX — they manage their own doctor profile.)
-        if ($user->hasAnyRole(['doctor', 'facility_admin', 'super-admin'])) {
+        if ($user->hasAnyRole(['doctor', 'facility-admin', 'super-admin'])) {
             return response()->json([
                 'error' => 'This endpoint is for patients only.',
             ], 403);
@@ -48,14 +48,14 @@ class DoctorFollowController extends Controller
                     ->where('doctor_id', $doctor->id)
                     ->lockForUpdate()
                     ->first();
-                if (!$existing) {
+                if (! $existing) {
                     Follow::create([
                         'user_id' => $user->id,
                         'doctor_id' => $doctor->id,
                     ]);
                 }
             });
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             // Unique constraint race — already exists, that's fine.
         }
 
@@ -72,7 +72,7 @@ class DoctorFollowController extends Controller
     public function unfollow(Request $request, Doctor $doctor): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
@@ -94,7 +94,7 @@ class DoctorFollowController extends Controller
     public function status(Request $request, Doctor $doctor): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['following' => false, 'authenticated' => false]);
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\DoctorRelationshipStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicSession;
 use App\Models\Doctor;
@@ -17,7 +18,7 @@ class DoctorController extends Controller
         $query = Doctor::with(['specialties', 'facilities.county'])->where('is_active', true);
 
         if ($request->filled('name')) {
-            $query->where('display_name', 'like', '%' . $request->name . '%');
+            $query->where('display_name', 'like', '%'.$request->name.'%');
         }
         if ($request->filled('specialty_id')) {
             $query->whereHas('specialties', fn ($q) => $q->where('specialties.id', $request->specialty_id));
@@ -61,7 +62,7 @@ class DoctorController extends Controller
             'facility' => ['id' => $s->facility->id, 'name' => $s->facility->name, 'city' => $s->facility->city],
             'max_appointments' => $s->max_appointments,
             'booked_appointments' => $s->booked_appointments,
-            'is_active' => $s->is_active,
+            'is_active' => $s->status === 'confirmed',
         ]);
 
         return response()->json(['data' => [
@@ -94,13 +95,73 @@ class DoctorController extends Controller
         ])]);
     }
 
+    /**
+     * Phase 23: GET /api/doctors/{slug}/today — "Where is my doctor today?"
+     * Public. Returns today's confirmed clinics per facility, plus the next
+     * clinic if none today. Relationship-driven (ACTIVE relationships only).
+     */
+    public function today(string $slug): JsonResponse
+    {
+        $doctor = Doctor::with(['specialties', 'user'])->where('slug', $slug)->firstOrFail();
+        $date = today();
+
+        $todaySessions = ClinicSession::with(['facility.county'])
+            ->where('doctor_id', $doctor->id)
+            ->whereDate('session_date', $date)
+            ->where('status', 'confirmed')
+            ->orderBy('start_time')
+            ->get();
+
+        $next = null;
+        if ($todaySessions->isEmpty()) {
+            $next = ClinicSession::with(['facility'])
+                ->where('doctor_id', $doctor->id)
+                ->whereDate('session_date', '>', $date)
+                ->where('status', 'confirmed')
+                ->orderBy('session_date')
+                ->orderBy('start_time')
+                ->first();
+        }
+
+        $licensing = $doctor->doctorFacilities()
+            ->where('status', DoctorRelationshipStatus::ACTIVE)
+            ->with('facility')
+            ->get();
+
+        return response()->json(['data' => [
+            'doctor' => ['id' => $doctor->id, 'slug' => $doctor->slug, 'name' => $doctor->display_name, 'is_verified' => $doctor->is_verified],
+            'date' => $date->format('Y-m-d'),
+            'day' => $date->format('l, F j, Y'),
+            'licensed_facilities' => $licensing->map(fn ($df) => $df->facility ? ['id' => $df->facility->id, 'name' => $df->facility->name, 'city' => $df->facility->city] : null)->values(),
+            'today' => $todaySessions->map(fn ($s) => [
+                'session_id' => $s->id,
+                'facility' => ['id' => $s->facility_id, 'name' => $s->facility->name, 'city' => $s->facility->city, 'county' => $s->facility->county?->name],
+                'start_time' => substr($s->start_time, 0, 5),
+                'end_time' => substr($s->end_time, 0, 5),
+                'consultation_fee' => $s->consultation_fee,
+                'available_slots' => $s->available_slots,
+                'is_bookable' => $s->is_bookable,
+            ])->values(),
+            'next_session' => $next ? [
+                'date' => $next->session_date->format('Y-m-d'),
+                'day' => $next->session_date->format('l, F j'),
+                'facility' => $next->facility->name,
+                'city' => $next->facility->city,
+                'start_time' => substr($next->start_time, 0, 5),
+                'end_time' => substr($next->end_time, 0, 5),
+            ] : null,
+        ]]);
+    }
+
     private function doctorSessionForDate(Doctor $doctor, Carbon $date): ?array
     {
         $session = ClinicSession::where('doctor_id', $doctor->id)
             ->where('session_date', $date->toDateString())->where('status', 'confirmed')
             ->with('facility')->first();
 
-        if (!$session) return null;
+        if (! $session) {
+            return null;
+        }
 
         return [
             'id' => $session->id, 'date' => $session->session_date->format('Y-m-d'),

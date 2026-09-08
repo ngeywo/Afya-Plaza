@@ -5,16 +5,45 @@ namespace App\Http\Controllers\Api\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Doctor;
 use App\Models\Facility;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Lists every administrator (doctor + facility admin) in the system
- * so the Super Admin can find and inspect any workspace owner.
- */
 class AdminController extends Controller
 {
+    /**
+     * Profile + role/permission context for the authenticated admin,
+     * used by the Shell to decide what the admin can see and do.
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user()->load('roles');
+        $role = $user->roles->first();
+        $permissions = $role
+            ? $role->permissions()->pluck('permissions.slug')->all()
+            : [];
+
+        return response()->json([
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_active' => (bool) $user->is_active,
+                'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'slug' => $role->slug] : null,
+                'permissions' => $permissions,
+                'platform' => [
+                    'total_doctors' => (int) Doctor::count(),
+                    'total_facilities' => (int) Facility::count(),
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Lists every administrator (doctor + facility admin) in the system
+     * so the Super Admin can find and inspect any workspace owner.
+     */
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -36,7 +65,7 @@ class AdminController extends Controller
         if ($role === 'all' || $role === 'doctor') {
             $doctorRows = Doctor::query()
                 ->with(['user:id,name,email,phone,is_active,is_verified', 'specialties:id,name'])
-                ->when($search, fn($q) => $q->where('display_name', 'like', "%{$search}%"))
+                ->when($search, fn ($q) => $q->where('display_name', 'like', "%{$search}%"))
                 ->when(in_array($status, ['active', 'inactive']), function ($q) use ($status) {
                     $q->where('doctors.is_active', $status === 'active');
                 })
@@ -67,11 +96,11 @@ class AdminController extends Controller
 
         if ($role === 'all' || $role === 'facility-admin') {
             $adminRows = User::query()
-                ->whereHas('roles', fn($q) => $q->where('slug', 'facility-admin'))
+                ->whereHas('roles', fn ($q) => $q->where('slug', 'facility-admin'))
                 ->with(['roles:roles.id,roles.slug', 'facilities' => function ($q) {
                     $q->select('facilities.id', 'facilities.name', 'facilities.city', 'facilities.slug');
                 }])
-                ->when($search, fn($q) => $q->where('name', 'like', "%{$search}%"))
+                ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->when(in_array($status, ['active', 'inactive']), function ($q) use ($status) {
                     $q->where('users.is_active', $status === 'active');
                 })
@@ -81,6 +110,7 @@ class AdminController extends Controller
                     $primary = $u->facilities->firstWhere('pivot.is_primary', true);
                     $first = $primary ?? $u->facilities->first();
                     $facility = $first;
+
                     return [
                         'id' => $u->id,
                         'type' => 'facility-admin',
@@ -102,7 +132,7 @@ class AdminController extends Controller
         }
 
         if (in_array($status, ['verified', 'unverified'])) {
-            $items = $items->filter(fn($a) => $a['is_verified'] === ($status === 'verified'));
+            $items = $items->filter(fn ($a) => $a['is_verified'] === ($status === 'verified'));
         }
 
         $total = $items->count();

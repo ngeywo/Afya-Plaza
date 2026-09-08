@@ -17,6 +17,9 @@ class Appointment extends Model
         'user_id',
         'doctor_id',
         'clinic_session_id',
+        'doctor_facility_service_id',
+        'service_name',
+        'service_price_snapshot',
         'facility_id',
         'facility_location_id',
         'appointment_date',
@@ -37,6 +40,11 @@ class Appointment extends Model
         'no_show_by',
         'amount_paid',
         'payment_status',
+        // Phase 12 financial snapshots written by PaymentService (commission guard)
+        'plan_slug',
+        'consultation_fee_snapshot',
+        'platform_commission_snapshot',
+        'doctor_earning_snapshot',
     ];
 
     protected $casts = [
@@ -53,35 +61,77 @@ class Appointment extends Model
     /**
      * Phase 11: clinic-day status constants.
      */
-    public const STATUS_PENDING     = 'pending';
-    public const STATUS_CONFIRMED   = 'confirmed';
-    public const STATUS_CHECKED_IN  = 'checked_in';
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_CONFIRMED = 'confirmed';
+
+    public const STATUS_CHECKED_IN = 'checked_in';
+
     public const STATUS_IN_PROGRESS = 'in_progress';
-    public const STATUS_COMPLETED   = 'completed';
-    public const STATUS_CANCELLED   = 'cancelled';
-    public const STATUS_NO_SHOW     = 'no_show';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    public const STATUS_NO_SHOW = 'no_show';
 
     /**
      * Authoritative transition map. Key = current state, value = allowed next states.
      */
     public const ALLOWED_TRANSITIONS = [
-        'pending'     => ['confirmed', 'cancelled'],
-        'confirmed'   => ['checked_in', 'cancelled', 'no_show'],
-        'checked_in'  => ['in_progress', 'cancelled', 'no_show'],
+        'pending' => ['confirmed', 'cancelled'],
+        'confirmed' => ['checked_in', 'cancelled', 'no_show'],
+        'checked_in' => ['in_progress', 'cancelled', 'no_show'],
         'in_progress' => ['completed', 'cancelled'],
-        'completed'   => [],
-        'cancelled'   => [],
-        'no_show'     => [],
+        'completed' => [],
+        'cancelled' => [],
+        'no_show' => [],
     ];
 
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
-    public function facility(): BelongsTo { return $this->belongsTo(Facility::class); }
-    public function facilityLocation(): BelongsTo { return $this->belongsTo(FacilityLocation::class); }
-    public function clinicSession(): BelongsTo { return $this->belongsTo(ClinicSession::class); }
-    public function cancelledByUser(): BelongsTo { return $this->belongsTo(User::class, 'cancelled_by'); }
-    public function checkedInByUser(): BelongsTo { return $this->belongsTo(User::class, 'checked_in_by'); }
-    public function noShowMarkedBy(): BelongsTo { return $this->belongsTo(User::class, 'no_show_by'); }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class);
+    }
+
+    public function facility(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class);
+    }
+
+    public function facilityLocation(): BelongsTo
+    {
+        return $this->belongsTo(FacilityLocation::class);
+    }
+
+    public function clinicSession(): BelongsTo
+    {
+        return $this->belongsTo(ClinicSession::class);
+    }
+
+    public function doctorFacilityService(): BelongsTo
+    {
+        return $this->belongsTo(DoctorFacilityService::class);
+    }
+
+    public function cancelledByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function checkedInByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_in_by');
+    }
+
+    public function noShowMarkedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'no_show_by');
+    }
 
     /** Phase 17: Payments belong to a separate financial domain but are referenced here for transparency. */
     public function payments(): HasMany
@@ -94,6 +144,7 @@ class Appointment extends Model
         $prefix = 'APT';
         $date = now()->format('Ymd');
         $random = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
         return "{$prefix}-{$date}-{$random}";
     }
 
@@ -196,6 +247,7 @@ class Appointment extends Model
     public function canTransitionTo(string $next): bool
     {
         $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
+
         return in_array($next, $allowed, true);
     }
 }

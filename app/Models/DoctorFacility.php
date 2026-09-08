@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DoctorRelationshipStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,6 +33,8 @@ class DoctorFacility extends Model
         'ended_at_governance',
         'ended_by',
         'notes_governance',
+        // Phase 23: Doctor-initiated join request
+        'requested_by',
     ];
 
     protected $casts = [
@@ -40,7 +43,7 @@ class DoctorFacility extends Model
         'is_active' => 'boolean',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
-        'status' => \App\Enums\DoctorRelationshipStatus::class,
+        'status' => DoctorRelationshipStatus::class,
         'approved_at' => 'datetime',
         'declined_at' => 'datetime',
         'ended_at_governance' => 'datetime',
@@ -66,6 +69,11 @@ class DoctorFacility extends Model
         return $this->hasMany(DoctorScheduleException::class);
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(DoctorFacilityService::class);
+    }
+
     // ─── Phase 13: Governance Relations ─────────────────────────────────────────
 
     public function invitedByUser(): BelongsTo
@@ -81,6 +89,41 @@ class DoctorFacility extends Model
     public function endedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ended_by');
+    }
+
+    public function requestedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    // ─── Phase 23: Convenience Helpers ──────────────────────────────────────────
+
+    /**
+     * Whether the relationship has been terminated (spec alias: ENDED).
+     */
+    public function isEnded(): bool
+    {
+        return $this->status?->isEnded() === true;
+    }
+
+    /**
+     * Whether the relationship was refused by either party (spec alias: REJECTED).
+     */
+    public function isRejected(): bool
+    {
+        return $this->status?->isRejected() === true;
+    }
+
+    /**
+     * Spec-friendly status label: INACTIVE displays as "Ended", DECLINED as "Rejected".
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            DoctorRelationshipStatus::INACTIVE => 'Ended',
+            DoctorRelationshipStatus::DECLINED => 'Rejected',
+            default => $this->status?->label() ?? 'Unknown',
+        };
     }
 
     // ─── Phase 13: Convenience Helpers ──────────────────────────────────────────

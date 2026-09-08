@@ -1,5 +1,5 @@
 <template>
-  <v-card class="following-doctor-card" :to="doctor.slug ? { name: 'doctor.profile', params: { slug: doctor.slug } } : null" elevation="1" rounded="lg">
+  <v-card class="following-doctor-card" :to="doctor.slug ? { name: 'doctor-profile', params: { slug: doctor.slug } } : null" elevation="1" rounded="lg">
     <div class="d-flex align-center pa-4">
       <v-avatar size="64" :color="doctor.avatar ? undefined : 'primary'" class="mr-4">
         <v-img v-if="doctor.avatar" :src="doctor.avatar" :alt="doctor.name" cover />

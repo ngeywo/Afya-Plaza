@@ -4,31 +4,31 @@ namespace App\Enums;
 
 enum VerificationStatus: string
 {
-    case PENDING    = 'pending';
+    case PENDING = 'pending';
     case UNDER_REVIEW = 'under_review';
-    case VERIFIED   = 'verified';
-    case REJECTED   = 'rejected';
-    case SUSPENDED  = 'suspended';
+    case VERIFIED = 'verified';
+    case REJECTED = 'rejected';
+    case SUSPENDED = 'suspended';
 
     public function label(): string
     {
         return match ($this) {
-            self::PENDING      => 'Pending',
+            self::PENDING => 'Pending',
             self::UNDER_REVIEW => 'Under Review',
-            self::VERIFIED     => 'Verified',
-            self::REJECTED     => 'Rejected',
-            self::SUSPENDED    => 'Suspended',
+            self::VERIFIED => 'Verified',
+            self::REJECTED => 'Rejected',
+            self::SUSPENDED => 'Suspended',
         };
     }
 
     public function color(): string
     {
         return match ($this) {
-            self::PENDING      => 'grey',
+            self::PENDING => 'grey',
             self::UNDER_REVIEW => 'blue',
-            self::VERIFIED     => 'success',
-            self::REJECTED     => 'error',
-            self::SUSPENDED    => 'warning',
+            self::VERIFIED => 'success',
+            self::REJECTED => 'error',
+            self::SUSPENDED => 'warning',
         };
     }
 
@@ -50,6 +50,6 @@ enum VerificationStatus: string
 
     public static function options(): array
     {
-        return collect(self::cases())->map(fn($s) => ['value' => $s->value, 'label' => $s->label()])->values()->all();
+        return collect(self::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->values()->all();
     }
 }

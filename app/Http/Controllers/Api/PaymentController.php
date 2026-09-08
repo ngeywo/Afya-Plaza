@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Payment;
+use App\Services\MpesaService;
 use App\Services\PaymentService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -51,12 +53,12 @@ class PaymentController extends Controller
     {
         $validated = $request->validate([
             'appointment_id' => 'required|integer|exists:appointments,id',
-            'method'  => 'nullable|string|in:mobile_money,card,bank_transfer,cash,other',
+            'method' => 'nullable|string|in:mobile_money,card,bank_transfer,cash,other',
             'provider' => 'nullable|string|in:mpesa,simulation,card,bank_transfer,cash',
-            'phone'   => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:20',
         ]);
 
-        $user       = $request->user();
+        $user = $request->user();
         $appointment = Appointment::with('clinicSession')->findOrFail($validated['appointment_id']);
 
         if ($appointment->user_id !== $user->id) {
@@ -77,41 +79,41 @@ class PaymentController extends Controller
 
         if ($existing) {
             return response()->json([
-                'data'    => $this->formatPayment($existing),
+                'data' => $this->formatPayment($existing),
                 'message' => 'Payment already exists.',
             ], 200);
         }
 
-        $method  = $validated['method']  ?? 'mobile_money';
+        $method = $validated['method'] ?? 'mobile_money';
         $provider = $validated['provider'] ?? ($method === 'mobile_money' ? 'mpesa' : 'simulation');
-        $phone   = $validated['phone']    ?? null;
+        $phone = $validated['phone'] ?? null;
 
         // Try to recover phone from user profile if not provided
-        if ($provider === 'mpesa' && !$phone) {
+        if ($provider === 'mpesa' && ! $phone) {
             $phone = $user->phone ?? $user->profile?->phone ?? null;
         }
 
         $payment = $this->paymentService->initiate(
-            appointment:     $appointment,
-            method:         $method,
-            provider:        $provider,
+            appointment: $appointment,
+            method: $method,
+            provider: $provider,
             idempotencyKey: "initiate:{$appointment->id}:{$user->id}",
         );
 
         // If M-Pesa STK Push, trigger the actual M-Pesa request
         if ($provider === 'mpesa' && $phone) {
             try {
-                $mpesaService = app(\App\Services\MpesaService::class);
+                $mpesaService = app(MpesaService::class);
 
                 $gross = (string) ($appointment->clinicSession?->consultation_fee
                     ?? $appointment->amount_paid
                     ?? '0');
 
                 $stkResult = $mpesaService->stkPush(
-                    amount:      (int) round((float) $gross),
-                    phone:       $phone,
-                    reference:   $payment->reference,
-                    description: "Dr. Plaza appointment payment",
+                    amount: (int) round((float) $gross),
+                    phone: $phone,
+                    reference: $payment->reference,
+                    description: 'Dr. Plaza appointment payment',
                 );
 
                 $payment->update([
@@ -123,42 +125,43 @@ class PaymentController extends Controller
                 ]);
 
                 Log::info('PaymentController: M-Pesa STK Push triggered', [
-                    'payment_id'          => $payment->id,
+                    'payment_id' => $payment->id,
                     'checkout_request_id' => $stkResult['checkout_request_id'],
                 ]);
 
                 return response()->json([
-                    'data'    => $this->formatPayment($payment->fresh()),
+                    'data' => $this->formatPayment($payment->fresh()),
                     'message' => 'M-Pesa STK Push sent. Check your phone and enter your M-Pesa PIN.',
-                    'mpesa'   => [
+                    'mpesa' => [
                         'checkout_request_id' => $stkResult['checkout_request_id'],
-                        'status'             => 'pending_customer',
+                        'status' => 'pending_customer',
                     ],
                 ], 201);
 
             } catch (\Throwable $e) {
                 Log::error('PaymentController: M-Pesa STK Push failed', [
                     'payment_id' => $payment->id,
-                    'error'      => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
 
                 $payment->update([
-                    'status'         => Payment::STATUS_FAILED,
-                    'failure_reason' => 'M-Pesa STK Push failed: ' . $e->getMessage(),
+                    'status' => Payment::STATUS_FAILED,
+                    'failure_reason' => 'M-Pesa STK Push failed: '.$e->getMessage(),
                 ]);
 
                 return response()->json([
-                    'error'   => 'Failed to initiate M-Pesa payment. Please try again.',
+                    'error' => 'Failed to initiate M-Pesa payment. Please try again.',
                     'details' => $e->getMessage(),
                 ], 502);
             }
         }
 
         return response()->json([
-            'data'    => $this->formatPayment($payment),
+            'data' => $this->formatPayment($payment),
             'message' => 'Payment initiated. Proceed to payment provider.',
         ], 201);
     }
+
     /**
      * POST /api/payments/callback
      *
@@ -183,7 +186,7 @@ class PaymentController extends Controller
             ->whereIn('status', [Payment::STATUS_PENDING, Payment::STATUS_PROCESSING])
             ->first();
 
-        if (!$payment) {
+        if (! $payment) {
             $payment = $this->paymentService->initiate($appointment);
         }
 
@@ -232,20 +235,16 @@ class PaymentController extends Controller
             return response()->json(['error' => $e->getMessage()], 422);
         }
     }
+
     /**
      * POST /api/payments/simulate
      *
      * Development/test endpoint: simulates a successful payment without a real provider.
-     * Guarded in non-local environments by X-Simulation-Secret header.
+     * Only reachable when PAYMENT_SIMULATION_ENABLED=true and is 404'd otherwise
+     * (see the `only-if` route middleware). Never enabled in production.
      */
     public function simulate(Request $request): JsonResponse
     {
-        if (!app()->environment('local', 'development', 'testing')) {
-            $secret = $request->header('X-Simulation-Secret');
-            if ($secret !== env('PAYMENT_SIMULATION_SECRET', 'dev-secret')) {
-                return response()->json(['error' => 'Unauthorized.'], 403);
-            }
-        }
 
         $validated = $request->validate([
             'appointment_id' => 'required|integer|exists:appointments,id',
@@ -257,7 +256,7 @@ class PaymentController extends Controller
             ->whereIn('status', [Payment::STATUS_PENDING, Payment::STATUS_PROCESSING])
             ->first();
 
-        if (!$payment) {
+        if (! $payment) {
             $payment = $this->paymentService->initiate($appointment);
         }
 
@@ -269,7 +268,7 @@ class PaymentController extends Controller
             ]);
         }
 
-        $simRef = 'SIM-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
+        $simRef = 'SIM-'.now()->format('YmdHis').'-'.random_int(1000, 9999);
         $payment = $this->paymentService->confirm($payment, $simRef);
 
         return response()->json([
@@ -290,7 +289,7 @@ class PaymentController extends Controller
             || ($payment->doctor && $payment->doctor->user_id === $user->id)
             || $user->isSuperAdmin();
 
-        if (!$isOwner) {
+        if (! $isOwner) {
             return response()->json(['error' => 'Unauthorized.'], 403);
         }
 
@@ -325,7 +324,7 @@ class PaymentController extends Controller
                 'id' => $p->appointment->id,
                 'appointment_number' => $p->appointment->appointment_number,
                 'status' => $p->appointment->status,
-                'appointment_date' => $p->appointment->appointment_date instanceof \Carbon\Carbon
+                'appointment_date' => $p->appointment->appointment_date instanceof Carbon
                     ? $p->appointment->appointment_date->format('Y-m-d')
                     : $p->appointment->appointment_date,
                 'start_time' => substr($p->appointment->start_time, 0, 5),

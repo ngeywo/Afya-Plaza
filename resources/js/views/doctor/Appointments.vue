@@ -54,6 +54,9 @@
             </v-window-item>
         </v-window>
     </div>
+</template>
+
+<script setup>
 import { ref, onMounted } from "vue";
 import { useDoctorWorkspaceStore } from "../../stores/doctorWorkspaceStore";
 import ClinicDayBoard from "../../components/ClinicDayBoard.vue";
@@ -95,5 +98,4 @@ onMounted(() => {
     if (activeTab.value === "board") boardRef.value?.load();
     else load();
 });
-
-</template>
+</script>

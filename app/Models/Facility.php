@@ -2,20 +2,24 @@
 
 namespace App\Models;
 
+use App\Enums\DoctorRelationshipStatus;
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Facility extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'name', 'slug', 'description', 'address', 'city',
+        'name', 'slug', 'description', 'address', 'city', 'county_id',
         'latitude', 'longitude', 'phone', 'email',
         'logo', 'banner', 'is_verified', 'is_active', 'type',
+        'registry_number',
         'verification_status',
         'rejection_reason',
         'rejection_notes',
@@ -30,8 +34,23 @@ class Facility extends Model
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
         'suspended_at' => 'datetime',
-        'verification_status' => \App\Enums\VerificationStatus::class,
+        'verification_status' => VerificationStatus::class,
     ];
+
+    /**
+     * Phase 23 (Unified Facility Identity): normalize the facility registration
+     * identifier before every save.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Facility $facility) {
+            if ($facility->registry_number === null || trim($facility->registry_number) === '') {
+                $facility->registry_number = null;
+            } else {
+                $facility->registry_number = strtoupper(preg_replace('/\s+/', '', $facility->registry_number));
+            }
+        });
+    }
 
     // ─── Phase 13: Governance Relations ─────────────────────────────────────────
 
@@ -43,7 +62,7 @@ class Facility extends Model
     public function activeDoctorFacilities()
     {
         return $this->doctorFacilities()
-            ->where('status', \App\Enums\DoctorRelationshipStatus::ACTIVE->value);
+            ->where('status', DoctorRelationshipStatus::ACTIVE->value);
     }
 
     // ─── Phase 13: Governance Helpers ─────────────────────────────────────────
@@ -55,16 +74,19 @@ class Facility extends Model
 
     public function isOperational(): bool
     {
-        if (!$this->is_active) return false;
+        if (! $this->is_active) {
+            return false;
+        }
+
         return in_array($this->verification_status, [
-            \App\Enums\VerificationStatus::VERIFIED,
-            \App\Enums\VerificationStatus::SUSPENDED,
+            VerificationStatus::VERIFIED,
+            VerificationStatus::PENDING,
         ], true);
     }
 
     public function isSuspended(): bool
     {
-        return $this->verification_status === \App\Enums\VerificationStatus::SUSPENDED;
+        return $this->verification_status === VerificationStatus::SUSPENDED;
     }
 
     public function county(): BelongsTo
@@ -108,5 +130,20 @@ class Facility extends Model
     public function allLocations(): HasMany
     {
         return $this->hasMany(FacilityLocation::class);
+    }
+
+    public function verificationRequests(): MorphMany
+    {
+        return $this->morphMany(VerificationRequest::class, 'verifiable');
+    }
+
+    public function operatingHours(): HasMany
+    {
+        return $this->hasMany(FacilityOperatingHour::class);
+    }
+
+    public function settings(): HasMany
+    {
+        return $this->hasMany(FacilitySetting::class);
     }
 }

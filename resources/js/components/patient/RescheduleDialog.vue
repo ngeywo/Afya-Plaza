@@ -66,6 +66,7 @@
                     Confirm reschedule
                 </v-btn>
             </v-card-actions>
+            <v-snackbar v-model="snackbar" :color="snackColor" location="bottom" timeout="3000">{{ snackText }}</v-snackbar>
         </v-card>
     </v-dialog>
 </template>
@@ -78,6 +79,7 @@
 import { ref, computed, watch } from 'vue';
 import { doctorService, sessionSearchService } from '../../services/doctorService';
 import { useAppointmentStore } from '../../stores/appointmentStore';
+import { useNotifier } from '../../composables/useNotifier';
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
@@ -86,6 +88,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'rescheduled']);
 
 const aptStore = useAppointmentStore();
+const { snackbar, snackText, snackColor, notifyError } = useNotifier();
 
 const selectedDate = ref(null);
 const sessions = ref([]);
@@ -178,9 +181,9 @@ async function confirm() {
         if (code === 'SLOT_TAKEN') {
             await loadSlots();
             selectedSlot.value = null;
-            alert('That time was just taken. Please pick another.');
+            notifyError('That time was just taken. Please pick another.');
         } else {
-            alert(e.response?.data?.error || 'Failed to reschedule. Please try again.');
+            notifyError(e.response?.data?.error || 'Failed to reschedule. Please try again.');
         }
     } finally {
         saving.value = false;

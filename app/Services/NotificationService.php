@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Jobs\SendDatabaseNotification;
-use App\Models\ClinicSession;
 use App\Models\Appointment;
+use App\Models\ClinicSession;
+use App\Models\Facility;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class NotificationService
@@ -12,16 +14,20 @@ class NotificationService
     public function notifyFollowersClinicConfirmed(ClinicSession $session): void
     {
         $doctor = $session->doctor;
-        if (!$doctor) return;
+        if (! $doctor) {
+            return;
+        }
         $followerIds = $doctor->followers()->pluck('users.id')->all();
-        if (empty($followerIds)) return;
+        if (empty($followerIds)) {
+            return;
+        }
         $facility = $session->facility;
         $facilityName = $facility?->name ?? 'a clinic';
         $facilityCity = $facility?->city ?? '';
         $city = $facilityCity ? " in {$facilityCity}" : '';
         $title = "Dr. {$doctor->display_name} will be at {$facilityName}{$city} soon.";
         $when = $session->session_date->format('M j, Y');
-        $times = substr($session->start_time, 0, 5) . ' - ' . substr($session->end_time, 0, 5);
+        $times = substr($session->start_time, 0, 5).' - '.substr($session->end_time, 0, 5);
         $message = "{$when} {$times}.";
         foreach ($followerIds as $userId) {
             $this->push($userId, [
@@ -47,7 +53,7 @@ class NotificationService
         $doctor = $session->doctor;
         $facility = $session->facility;
         $when = $session->session_date->format('M j, Y');
-        $times = substr($session->start_time, 0, 5) . ' - ' . substr($session->end_time, 0, 5);
+        $times = substr($session->start_time, 0, 5).' - '.substr($session->end_time, 0, 5);
         $bookedUserIds = $session->appointments()
             ->whereIn('status', ['pending', 'confirmed'])
             ->pluck('user_id')->unique()->all();
@@ -90,7 +96,7 @@ class NotificationService
         }
         // Notify facility admins for the affected facility.
         if ($session->facility_id) {
-            $facilityAdminIds = \App\Models\User::whereHas('facilities', function ($q) use ($session) {
+            $facilityAdminIds = User::whereHas('facilities', function ($q) use ($session) {
                 $q->where('facilities.id', $session->facility_id);
             })->pluck('users.id')->all();
             foreach ($facilityAdminIds as $adminId) {
@@ -112,7 +118,9 @@ class NotificationService
         if ($doctor) {
             $followerIds = $doctor->followers()->pluck('users.id')->all();
             foreach ($followerIds as $userId) {
-                if (in_array($userId, $bookedUserIds, true)) continue;
+                if (in_array($userId, $bookedUserIds, true)) {
+                    continue;
+                }
                 $this->push($userId, [
                     'category' => 'clinic_cancelled',
                     'title' => "Dr. {$doctor->display_name}\'s clinic at {$facility?->name} has been cancelled.",
@@ -134,7 +142,9 @@ class NotificationService
         $doctor = $apt->doctor;
         $facility = $apt->facility;
         $session = $apt->clinicSession;
-        if (!$doctor || !$facility) return;
+        if (! $doctor || ! $facility) {
+            return;
+        }
         $when = $apt->appointment_date->format('l, M j, Y');
         $time = substr($apt->start_time, 0, 5);
         $this->push($apt->user_id, [
@@ -260,7 +270,9 @@ class NotificationService
     {
         $apt = $appointment->loadMissing(['doctor', 'facility', 'user']);
         $doctor = $apt->doctor;
-        if (!$doctor || !$doctor->user_id) return;
+        if (! $doctor || ! $doctor->user_id) {
+            return;
+        }
         $when = $apt->appointment_date->format('M j, Y');
         $time = substr($apt->start_time, 0, 5);
         $this->push($doctor->user_id, [
@@ -285,7 +297,9 @@ class NotificationService
     {
         $apt = $appointment->loadMissing(['doctor', 'facility', 'user']);
         $doctor = $apt->doctor;
-        if (!$doctor || !$doctor->user_id) return;
+        if (! $doctor || ! $doctor->user_id) {
+            return;
+        }
         $when = $apt->appointment_date->format('M j, Y');
         $time = substr($apt->start_time, 0, 5);
         $reason = $apt->cancellation_reason ? " Reason: {$apt->cancellation_reason}." : '';
@@ -312,18 +326,26 @@ class NotificationService
     public function notifyDoctorSessionChanged(ClinicSession $session, array $changes, array $oldValues): void
     {
         $doctor = $session->doctor;
-        if (!$doctor || !$doctor->user_id) return;
+        if (! $doctor || ! $doctor->user_id) {
+            return;
+        }
         $facility = $session->facility;
         $facilityName = $facility?->name ?? 'the clinic';
         $when = $session->session_date->format('M j, Y');
         $parts = [];
-        if (isset($changes['facility_id'])) { $parts[] = 'location changed to ' . $facilityName; }
-        if (isset($changes['start_time'])) { $parts[] = 'start time now ' . substr($session->start_time, 0, 5); }
-        if (isset($changes['session_date'])) { $parts[] = 'date updated to ' . $when; }
+        if (isset($changes['facility_id'])) {
+            $parts[] = 'location changed to '.$facilityName;
+        }
+        if (isset($changes['start_time'])) {
+            $parts[] = 'start time now '.substr($session->start_time, 0, 5);
+        }
+        if (isset($changes['session_date'])) {
+            $parts[] = 'date updated to '.$when;
+        }
         $this->push($doctor->user_id, [
             'category' => 'doctor_session_changed',
             'title' => 'Your clinic session was updated.',
-            'message' => "{$facilityName} on {$when}. " . implode('; ', $parts) . ".",
+            'message' => "{$facilityName} on {$when}. ".implode('; ', $parts).'.',
             'priority' => 'important',
             'clinic_session_id' => $session->id,
             'facility_id' => $session->facility_id,
@@ -344,12 +366,16 @@ class NotificationService
         $when = $session->session_date->format('M j, Y');
         $parts = [];
         if (isset($changes['facility_id'])) {
-            $oldFac = \App\Models\Facility::find($oldValues['facility_id'] ?? null);
-            $parts[] = 'Previous location: ' . ($oldFac?->name ?? 'previous clinic');
-            $parts[] = 'Updated location: ' . ($facility?->name ?? 'new clinic');
+            $oldFac = Facility::find($oldValues['facility_id'] ?? null);
+            $parts[] = 'Previous location: '.($oldFac?->name ?? 'previous clinic');
+            $parts[] = 'Updated location: '.($facility?->name ?? 'new clinic');
         }
-        if (isset($changes['session_date'])) { $parts[] = 'Date updated to ' . $when; }
-        if (isset($changes['start_time'])) { $parts[] = 'Start time now ' . substr($session->start_time, 0, 5); }
+        if (isset($changes['session_date'])) {
+            $parts[] = 'Date updated to '.$when;
+        }
+        if (isset($changes['start_time'])) {
+            $parts[] = 'Start time now '.substr($session->start_time, 0, 5);
+        }
         $changeSummary = implode('. ', $parts);
         $affectedAppointments = $session->appointments()->whereIn('status', ['pending', 'confirmed'])->get();
         foreach ($affectedAppointments as $appt) {
@@ -381,16 +407,18 @@ class NotificationService
     {
         $apt = $appointment->loadMissing(['doctor', 'facility', 'user']);
         $facility = $apt->facility;
-        if (!$facility) return;
+        if (! $facility) {
+            return;
+        }
         $when = $apt->appointment_date->format('M j, Y');
         $time = substr($apt->start_time, 0, 5);
-        $adminIds = \App\Models\User::whereHas('facilities', function ($q) use ($facility) {
+        $adminIds = User::whereHas('facilities', function ($q) use ($facility) {
             $q->where('facilities.id', $facility->id);
         })->pluck('users.id')->all();
         foreach ($adminIds as $adminId) {
             $this->push($adminId, [
                 'category' => 'facility_new_booking',
-                'title' => 'New appointment at ' . $facility->name,
+                'title' => 'New appointment at '.$facility->name,
                 'message' => "Dr. {$apt->doctor?->display_name} — {$when} at {$time}.",
                 'priority' => 'informational',
                 'appointment_id' => $apt->id,
@@ -437,14 +465,14 @@ class NotificationService
         if ($dedupKey) {
             $payload['_dedup'] = $dedupKey;
             $exists = DB::table('notifications')
-                ->where('notifiable_type', \App\Models\User::class)
+                ->where('notifiable_type', User::class)
                 ->where('notifiable_id', $userId)
-                ->where('data', 'like', '%"_dedup":"' . $dedupKey . '"%')
+                ->where('data', 'like', '%"_dedup":"'.$dedupKey.'"%')
                 ->exists();
-            if ($exists) return;
+            if ($exists) {
+                return;
+            }
         }
         SendDatabaseNotification::dispatch($userId, $payload);
     }
 }
-
-    

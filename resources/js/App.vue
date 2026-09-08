@@ -23,7 +23,7 @@
                     <NotificationBell v-if="auth.isPatient" class="mr-1" />
                     <v-btn v-if="auth.isDoctor" color="primary" variant="tonal" to="/doctor/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-doctor">Doctor Workspace</v-btn>
                     <v-btn v-if="auth.isFacility" color="secondary" variant="tonal" to="/facility/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-hospital-building">Facility Workspace</v-btn>
-                    <v-btn v-if="auth.isSuperAdmin" color="secondary" variant="tonal" to="/admin/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-shield-account">Control Centre</v-btn>
+                    <v-btn v-if="auth.isPlatformOperator" color="secondary" variant="tonal" to="/admin/dashboard" class="mr-2 d-none d-md-flex" prepend-icon="mdi-shield-account">Control Centre</v-btn>
                     <v-menu>
                         <template v-slot:activator="{ props }">
                             <v-btn icon v-bind="props"><v-avatar size="32" color="primary"><span class="text-white font-weight-bold">{{ userInitials }}</span></v-avatar></v-btn>
@@ -36,7 +36,7 @@
                             <v-divider></v-divider>
                             <v-list-item v-if="auth.isDoctor" to="/doctor/dashboard" prepend-icon="mdi-doctor"><v-list-item-title>Doctor Workspace</v-list-item-title></v-list-item>
                             <v-list-item v-if="auth.isFacility" to="/facility/dashboard" prepend-icon="mdi-hospital-building"><v-list-item-title>Facility Workspace</v-list-item-title></v-list-item>
-                            <v-list-item v-if="auth.isSuperAdmin" to="/admin/dashboard" prepend-icon="mdi-shield-account"><v-list-item-title>Control Centre</v-list-item-title></v-list-item>
+                            <v-list-item v-if="auth.isPlatformOperator" to="/admin/dashboard" prepend-icon="mdi-shield-account"><v-list-item-title>Control Centre</v-list-item-title></v-list-item>
                             <v-list-item v-if="auth.isPatient" to="/my-doctors" prepend-icon="mdi-doctor"><v-list-item-title>My Doctors</v-list-item-title></v-list-item>
                             <v-list-item to="/my-appointments" prepend-icon="mdi-calendar-check"><v-list-item-title>My Appointments</v-list-item-title></v-list-item>
                             <v-divider></v-divider>

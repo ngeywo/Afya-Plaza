@@ -15,7 +15,7 @@ class NotificationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
@@ -44,9 +44,10 @@ class NotificationController extends Controller
     public function unreadCount(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['count' => 0, 'authenticated' => false]);
         }
+
         return response()->json([
             'count' => $user->unreadNotifications()->count(),
             'authenticated' => true,
@@ -56,26 +57,28 @@ class NotificationController extends Controller
     public function markRead(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
         $notification = $user->notifications()->where('id', $id)->first();
-        if (!$notification) {
+        if (! $notification) {
             return response()->json(['error' => 'Notification not found.'], 404);
         }
         if (is_null($notification->read_at)) {
             $notification->markAsRead();
         }
+
         return response()->json(['data' => $this->format($notification->fresh())]);
     }
 
     public function markAllRead(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
         $count = $user->unreadNotifications()->update(['read_at' => now()]);
+
         return response()->json([
             'message' => 'All notifications marked as read.',
             'marked' => $count,
@@ -85,7 +88,7 @@ class NotificationController extends Controller
     public function followingDoctors(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
@@ -144,6 +147,7 @@ class NotificationController extends Controller
     private function format(DatabaseNotification $n): array
     {
         $data = $n->data ?? [];
+
         return [
             'id' => $n->id,
             'type' => $n->type,

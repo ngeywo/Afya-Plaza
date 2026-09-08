@@ -25,7 +25,9 @@ class EarningsService
     public function createFromPayment(Payment $payment, array $allocation): DoctorEarning
     {
         $existing = DoctorEarning::where('payment_id', $payment->id)->first();
-        if ($existing) return $existing;
+        if ($existing) {
+            return $existing;
+        }
 
         $doctor = $payment->doctor;
         $planSlug = str_replace('plan:', '', $allocation['rule_source']);
@@ -59,6 +61,7 @@ class EarningsService
                 $earning->makeAvailable();
                 $count++;
             });
+
         return $count;
     }
 
@@ -69,7 +72,9 @@ class EarningsService
     public function reverseForPayment(Payment $payment, string $amount, string $reason): int
     {
         $earning = DoctorEarning::where('payment_id', $payment->id)->first();
-        if (!$earning) return 0;
+        if (! $earning) {
+            return 0;
+        }
 
         if ($earning->status === DoctorEarning::STATUS_PAID_OUT) {
             // Already paid out — must be handled by a future deduction mechanism
@@ -80,6 +85,7 @@ class EarningsService
                     'pending_deduction_reason' => $reason,
                 ]),
             ]);
+
             return 0;
         }
 
@@ -133,7 +139,7 @@ class EarningsService
             ->get();
 
         if ($earnings->isEmpty()) {
-            throw new \RuntimeException("No available earnings to pay out.");
+            throw new \RuntimeException('No available earnings to pay out.');
         }
 
         return DB::transaction(function () use ($doctorId, $earnings, $requestedBy) {

@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Events\AppointmentBooked;
 use App\Events\AppointmentCancelled;
 use App\Listeners\NotifyAppointmentPatient;
+use App\Services\CodeSenderInterface;
+use App\Services\LoggingCodeSender;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         parent::register();
+
+        $this->app->bind(CodeSenderInterface::class, LoggingCodeSender::class);
     }
 
     public function boot(): void

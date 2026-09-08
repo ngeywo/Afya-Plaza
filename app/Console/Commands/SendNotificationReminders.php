@@ -4,16 +4,17 @@ namespace App\Console\Commands;
 
 use App\Models\Appointment;
 use App\Services\NotificationService;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Phase 18: Send appointment reminder notifications.
- * 
+ *
  * Usage:
  *   php artisan notifications:remind --interval=24h
  *   php artisan notifications:remind --interval=2h
- * 
+ *
  * Scheduled in routes/console.php to run:
  *   - 24h reminder daily at 08:00
  *   - 2h reminder hourly at :45
@@ -21,13 +22,15 @@ use Illuminate\Support\Facades\Log;
 class SendNotificationReminders extends Command
 {
     protected $signature = 'notifications:remind {--interval=24h : Reminder interval (24h or 2h)}';
+
     protected $description = 'Send appointment reminder notifications to patients';
 
     public function handle(NotificationService $notifications): int
     {
         $interval = $this->option('interval');
-        if (!in_array($interval, ['24h', '2h'])) {
+        if (! in_array($interval, ['24h', '2h'])) {
             $this->error('Invalid interval. Use --interval=24h or --interval=2h');
+
             return Command::FAILURE;
         }
 
@@ -41,8 +44,8 @@ class SendNotificationReminders extends Command
             ->get();
 
         foreach ($appointments as $appointment) {
-            $appointmentDateTime = \Carbon\Carbon::parse(
-                $appointment->appointment_date->format('Y-m-d') . ' ' . $appointment->start_time
+            $appointmentDateTime = Carbon::parse(
+                $appointment->appointment_date->format('Y-m-d').' '.$appointment->start_time
             );
 
             $minutesUntil = $now->diffInMinutes($appointmentDateTime);

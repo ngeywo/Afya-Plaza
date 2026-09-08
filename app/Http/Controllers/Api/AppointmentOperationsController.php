@@ -21,6 +21,7 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Patient checked in.']);
     }
 
@@ -28,10 +29,10 @@ class AppointmentOperationsController extends Controller
     {
         $user = $request->user();
         $doctor = $user->doctor;
-        if (!$doctor && !$user->isSuperAdmin()) {
+        if (! $doctor && ! $user->isSuperAdmin()) {
             return response()->json(['error' => 'Only the doctor can start a consultation.'], 403);
         }
-        if ($user->isSuperAdmin() && !$doctor) {
+        if ($user->isSuperAdmin() && ! $doctor) {
             $doctor = $appointment->doctor;
         }
         try {
@@ -41,6 +42,7 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Consultation started.']);
     }
 
@@ -48,10 +50,10 @@ class AppointmentOperationsController extends Controller
     {
         $user = $request->user();
         $doctor = $user->doctor;
-        if (!$doctor && !$user->isSuperAdmin()) {
+        if (! $doctor && ! $user->isSuperAdmin()) {
             return response()->json(['error' => 'Only the doctor can complete a consultation.'], 403);
         }
-        if ($user->isSuperAdmin() && !$doctor) {
+        if ($user->isSuperAdmin() && ! $doctor) {
             $doctor = $appointment->doctor;
         }
         try {
@@ -61,6 +63,7 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Consultation completed.']);
     }
 
@@ -73,6 +76,7 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Marked as no-show.']);
     }
 
@@ -86,6 +90,7 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Appointment cancelled.']);
     }
 
@@ -105,6 +110,7 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Appointment cancelled.']);
     }
 
@@ -117,12 +123,12 @@ class AppointmentOperationsController extends Controller
     {
         $request->validate(['cancellation_reason' => 'nullable|string|max:500']);
         $user = $request->user();
-        
+
         // IDOR protection: patient can only cancel their own appointment
         if ($appointment->user_id !== $user->id) {
             return response()->json(['error' => 'You can only cancel your own appointments.'], 403);
         }
-        
+
         try {
             $updated = $this->service->patientCancel($appointment, $user, $request->input('cancellation_reason'));
         } catch (\RuntimeException $e) {
@@ -130,12 +136,14 @@ class AppointmentOperationsController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+
         return response()->json(['data' => $this->format($updated), 'message' => 'Appointment cancelled.']);
     }
 
     private function format(Appointment $a): array
     {
         $a->loadMissing(['doctor', 'facility', 'clinicSession', 'checkedInByUser']);
+
         return [
             'id' => $a->id,
             'appointment_number' => $a->appointment_number,

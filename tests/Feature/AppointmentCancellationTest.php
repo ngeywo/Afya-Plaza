@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\Doctor;
+use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 
 /**
@@ -53,7 +55,7 @@ class AppointmentCancellationTest extends AppointmentTestCase
         $aptId = $this->book($this->patient, '09:00')->json('data.id');
 
         $otherDoctorUser = $this->makeUser('doctor');
-        \App\Models\Doctor::create([
+        Doctor::create([
             'user_id' => $otherDoctorUser->id,
             'display_name' => 'Dr. Other',
             'slug' => 'dr-other',
@@ -91,7 +93,7 @@ class AppointmentCancellationTest extends AppointmentTestCase
         $aptId = $this->book($this->patient, '09:00')->json('data.id');
 
         // Staff member of Facility B only
-        $staffB = \App\Models\User::factory()->create();
+        $staffB = User::factory()->create();
         $this->actingFacilityStaff($staffB, $this->facilityB);
 
         Sanctum::actingAs($staffB);
@@ -105,7 +107,7 @@ class AppointmentCancellationTest extends AppointmentTestCase
     {
         $aptId = $this->book($this->patient, '09:00')->json('data.id');
 
-        $staffA = \App\Models\User::factory()->create();
+        $staffA = User::factory()->create();
         $this->actingFacilityStaff($staffA, $this->facilityA);
 
         Sanctum::actingAs($staffA);

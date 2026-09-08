@@ -1,10 +1,11 @@
 <?php
+
 namespace Database\Seeders;
 
 use App\Enums\VerificationStatus;
-use App\Models\AuditLog;
 use App\Models\Doctor;
 use App\Models\Facility;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -21,7 +22,7 @@ class Phase13DemoSeeder extends Seeder
             'phone' => '+254700000099',
             'is_active' => true,
         ]);
-        $user->roles()->sync([\App\Models\Role::where('slug', 'doctor')->first()->id]);
+        $user->roles()->sync([Role::where('slug', 'doctor')->first()->id]);
 
         Doctor::create([
             'user_id' => $user->id,

@@ -1,168 +1,153 @@
 <template>
     <div>
-        <v-alert v-if="store.error" type="error" variant="tonal" class="mb-4" closable @click:close="store.error = null">
-            {{ store.error }}
-        </v-alert>
-        <v-progress-linear v-if="store.loading && !store.dashboard" indeterminate></v-progress-linear>
+        <AppErrorState
+            v-if="store.error && !store.dashboard"
+            title="We couldn't load your dashboard"
+            :message="store.error"
+            class="mb-4"
+            @retry="store.fetchDashboard()"
+        />
+        <AppLoadingState v-else-if="store.loading && !store.dashboard" variant="board" :rows="2" />
 
-        <template v-if="store.dashboard">
-            <!-- Doctor header -->
-            <div class="d-flex align-center mb-6">
-                <v-avatar size="56" color="primary" class="mr-4">
-                    <span class="text-white text-h6 font-weight-bold">{{ doctorInitials }}</span>
-                </v-avatar>
-                <div>
-                    <h1 class="text-h5 font-weight-bold">{{ store.dashboard.doctor.name }}</h1>
-                    <div class="d-flex align-center mt-1">
-                        <v-chip v-if="store.dashboard.doctor.is_verified" color="success" size="small" variant="tonal" prepend-icon="mdi-check-decagram" class="mr-2">Verified</v-chip>
-                        <span class="text-body-2 text-medium-emphasis">Doctor Workspace</span>
+        <template v-else-if="store.dashboard">
+            <AppPageHeader :title="store.dashboard.doctor.name" :subtitle="`Doctor Workspace${store.dashboard.today.day ? ' · ' + store.dashboard.today.day : ''}`" icon="mdi-stethoscope">
+                <template #actions>
+                    <v-chip v-if="store.dashboard.doctor.is_verified" color="success" variant="tonal" size="small" prepend-icon="mdi-check-decagram">Verified</v-chip>
+                </template>
+            </AppPageHeader>
+
+            <!-- WHERE I AM WORKING TODAY — signature Afya Plaza moment -->
+            <v-card color="primary" theme="dark" rounded="xl" class="mb-6 overflow-hidden">
+                <v-card-text class="pa-6 pa-md-8">
+                    <div class="d-flex align-center gap-2 mb-4">
+                        <v-icon icon="mdi-map-marker-radius" size="20"></v-icon>
+                        <h2 class="text-subtitle-1 font-weight-bold text-uppercase" style="letter-spacing: 0.12em;">Where I am working today</h2>
                     </div>
-                </div>
-            </div>
 
-            <!-- Today's clinics — Section 4, 42 -->
-            <div class="mb-6">
-                <h2 class="text-subtitle-1 font-weight-bold text-medium-emphasis mb-3 text-uppercase" style="letter-spacing: 0.5px;">Today — {{ store.dashboard.today.day }}</h2>
-
-                <!-- No clinic today -->
-                <v-card v-if="store.dashboard.today.sessions.length === 0" variant="outlined" class="pa-8 text-center">
-                    <v-icon icon="mdi-calendar-remove" size="64" color="medium-emphasis" class="mb-3"></v-icon>
-                    <h3 class="text-h6 font-weight-bold mb-2">No Clinic Today</h3>
-                    <p class="text-body-2 text-medium-emphasis mb-4">You currently have no confirmed clinic session scheduled today.</p>
-                    <v-btn color="primary" variant="tonal" :to="'/doctor/schedule'">
-                        <v-icon icon="mdi-calendar" class="mr-1"></v-icon>View Schedule
-                    </v-btn>
-                </v-card>
-
-                <!-- Today's session(s) -->
-                <v-card v-else variant="outlined" class="mb-3" v-for="session in store.dashboard.today.sessions" :key="session.id">
-                    <div class="pa-5">
-                        <div class="d-flex align-start justify-space-between mb-4">
-                            <div>
-                                <div class="d-flex align-center mb-1">
-                                    <v-icon icon="mdi-hospital-building" color="primary" class="mr-2"></v-icon>
-                                    <span class="text-h6 font-weight-bold">{{ session.facility.name }}</span>
+                    <template v-if="store.dashboard.today.sessions.length">
+                        <div
+                            v-for="(session, idx) in store.dashboard.today.sessions"
+                            :key="session.id"
+                            class="today-clinic-block"
+                            :class="{ 'mt-4': idx > 0 }"
+                        >
+                            <div class="d-flex align-center justify-space-between gap-3 flex-wrap mb-3">
+                                <div class="d-flex align-center gap-3">
+                                    <div class="d-inline-flex align-center justify-center rounded-lg" style="width: 46px; height: 46px; background: rgba(255,255,255,0.14);">
+                                        <v-icon icon="mdi-hospital-building" size="24" color="white"></v-icon>
+                                    </div>
+                                    <div>
+                                        <div class="text-h6 font-weight-bold">{{ session.facility.name }}</div>
+                                        <div class="text-body-2" style="opacity: 0.85;">{{ session.facility.address }}<span v-if="session.facility.city">, {{ session.facility.city }}</span></div>
+                                    </div>
                                 </div>
-                                <div class="text-body-2 text-medium-emphasis ml-8">
-                                    {{ session.facility.address }}, {{ session.facility.city }}
-                                </div>
+                                <AppStatusChip :status="sessionStatusKey(session)" variant="flat" label="" />
                             </div>
-                            <v-chip :color="sessionStatusColor(session)" size="small" variant="tonal">
-                                {{ sessionStatusLabel(session) }}
-                            </v-chip>
+
+                            <div class="d-flex align-center gap-2 mb-4">
+                                <v-icon icon="mdi-clock-outline" size="22" color="white"></v-icon>
+                                <span class="text-h5 font-weight-bold">{{ session.start_time }} – {{ session.end_time }}</span>
+                            </div>
+
+                            <v-row dense class="mb-4">
+                                <v-col cols="4">
+                                    <div class="text-caption" style="opacity: 0.8;">Booked</div>
+                                    <div class="text-h6 font-weight-bold">{{ session.booked_appointments }}</div>
+                                </v-col>
+                                <v-col cols="4">
+                                    <div class="text-caption" style="opacity: 0.8;">Available</div>
+                                    <div class="text-h6 font-weight-bold">{{ session.available_slots }}</div>
+                                </v-col>
+                                <v-col cols="4">
+                                    <div class="text-caption" style="opacity: 0.8;">Capacity</div>
+                                    <div class="text-h6 font-weight-bold">{{ session.max_appointments ?? '∞' }}</div>
+                                </v-col>
+                            </v-row>
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                <v-btn color="white" class="text-primary" variant="flat" size="small" :to="`/doctor/clinics?session=${session.id}`">View Clinic</v-btn>
+                                <v-btn color="white" variant="outlined" size="small" :to="`/doctor/appointments?session=${session.id}`">
+                                    {{ session.booked_appointments }} Appointments
+                                </v-btn>
+                            </div>
                         </div>
-                        <div class="d-flex align-center mb-4 ml-2">
-                            <v-icon icon="mdi-clock-outline" size="20" class="mr-2" color="medium-emphasis"></v-icon>
-                            <span class="text-h5 font-weight-bold">{{ session.start_time }} – {{ session.end_time }}</span>
+                    </template>
+
+                    <div v-else class="d-flex align-center gap-3">
+                        <div class="d-inline-flex align-center justify-center rounded-lg" style="width: 56px; height: 56px; background: rgba(255,255,255,0.14);">
+                            <v-icon icon="mdi-calendar-remove" size="28" color="white"></v-icon>
                         </div>
-                        <v-row dense class="mb-4">
-                            <v-col cols="4">
-                                <div class="text-caption text-medium-emphasis">Booked</div>
-                                <div class="text-h6 font-weight-bold">{{ session.booked_appointments }}</div>
-                            </v-col>
-                            <v-col cols="4">
-                                <div class="text-caption text-medium-emphasis">Available</div>
-                                <div class="text-h6 font-weight-bold text-primary">{{ session.available_slots }}</div>
-                            </v-col>
-                            <v-col cols="4">
-                                <div class="text-caption text-medium-emphasis">Capacity</div>
-                                <div class="text-h6 font-weight-bold">{{ session.max_appointments ?? '∞' }}</div>
-                            </v-col>
-                        </v-row>
-                        <div class="d-flex gap-4 mb-4">
-                            <span class="text-caption" :class="session.doctor_confirmation === 'confirmed' ? 'text-success' : 'text-warning'">
-                                <v-icon icon="mdi-doctor" size="14" class="mr-1"></v-icon>Doctor: {{ session.doctor_confirmation }}
-                            </span>
-                            <span class="text-caption" :class="session.facility_confirmation === 'confirmed' ? 'text-success' : 'text-warning'">
-                                <v-icon icon="mdi-hospital-building" size="14" class="mr-1"></v-icon>Facility: {{ session.facility_confirmation }}
-                            </span>
+                        <div class="flex-grow-1">
+                            <h3 class="text-h6 font-weight-bold mb-1">No clinic today</h3>
+                            <p class="text-body-2 mb-0" style="opacity: 0.85;">You have no confirmed session scheduled for today.</p>
                         </div>
-                        <div class="d-flex gap-2">
-                            <v-btn variant="tonal" color="primary" size="small" :to="`/doctor/clinics?session=${session.id}`">View Clinic</v-btn>
-                            <v-btn variant="outlined" size="small" :to="`/doctor/appointments?session=${session.id}`">
-                                {{ session.booked_appointments }} Appointments
-                            </v-btn>
-                        </div>
+                        <v-btn color="white" class="text-primary" variant="flat" to="/doctor/schedule" prepend-icon="mdi-calendar">View Schedule</v-btn>
                     </div>
-                    <v-divider v-if="store.dashboard.today.appointments.length > 0"></v-divider>
-                    <div v-if="store.dashboard.today.appointments.length > 0" class="pa-5 pt-0">
-                        <h3 class="text-subtitle-2 font-weight-bold mb-3">Today's Appointments</h3>
-                        <div v-for="apt in store.dashboard.today.appointments" :key="apt.id" class="d-flex align-center py-2 border-b">
-                            <span class="text-body-2 font-weight-medium mr-3" style="min-width: 52px;">{{ apt.start_time }}</span>
-                            <v-avatar size="28" color="primary" class="mr-2">
-                                <span class="text-white text-caption">{{ apt.patient?.name?.[0] ?? '?' }}</span>
-                            </v-avatar>
-                            <span class="text-body-2 font-weight-medium flex-grow-1">{{ apt.patient?.name }}</span>
-                            <v-chip :color="aptStatusColor(apt.status)" size="x-small" variant="tonal" class="mr-2">{{ apt.status }}</v-chip>
-                        </div>
-                    </div>
-                </v-card>
-            </div>
-            <!-- Phase 11: Today at a Glance -->
-            <v-card color="primary" variant="tonal" class="mb-6 pa-4" v-if="clinicDayMetrics">
-                <div class="d-flex align-center mb-2">
-                    <v-icon icon="mdi-clipboard-text-clock" class="mr-2" color="primary"></v-icon>
-                    <span class="text-subtitle-1 font-weight-bold">Today at a Glance</span>
-                    <v-spacer />
-                    <v-btn size="small" variant="text" to="/doctor/appointments">Full board &rarr;</v-btn>
-                </div>
-                <v-row dense>
-                    <v-col cols="3"><div class="text-h6 font-weight-bold">{{ clinicDayMetrics.total }}</div><div class="text-caption">Total</div></v-col>
-                    <v-col cols="3"><div class="text-h6 font-weight-bold text-teal">{{ clinicDayMetrics.checked_in }}</div><div class="text-caption">Checked in</div></v-col>
-                    <v-col cols="3"><div class="text-h6 font-weight-bold text-amber">{{ clinicDayMetrics.in_progress }}</div><div class="text-caption">In progress</div></v-col>
-                    <v-col cols="3"><div class="text-h6 font-weight-bold text-green">{{ clinicDayMetrics.completed }}</div><div class="text-caption">Completed</div></v-col>
-                </v-row>
+                </v-card-text>
             </v-card>
 
-            <!-- Metrics — Section 5 -->
-            <!-- Metrics — Section 5 -->
-            <v-row class="mb-6">
+            <!-- Today at a Glance (real clinic-day metrics) -->
+            <v-row v-if="clinicDayMetrics" class="mb-2" dense>
                 <v-col cols="6" md="3">
-                    <v-card variant="outlined" class="pa-4 text-center">
-                        <div class="text-h4 font-weight-bold text-primary">{{ store.dashboard.metrics.today_clinics }}</div>
-                        <div class="text-caption text-medium-emphasis mt-1">Today's Clinics</div>
-                    </v-card>
+                    <AppStatCard label="Total Today" :value="clinicDayMetrics.total" icon="mdi-clipboard-text-outline" tone="neutral" />
                 </v-col>
                 <v-col cols="6" md="3">
-                    <v-card variant="outlined" class="pa-4 text-center">
-                        <div class="text-h4 font-weight-bold text-primary">{{ store.dashboard.metrics.today_appointments }}</div>
-                        <div class="text-caption text-medium-emphasis mt-1">Today's Appointments</div>
-                    </v-card>
+                    <AppStatCard label="Checked In" :value="clinicDayMetrics.checked_in" icon="mdi-account-check-outline" tone="success" color="success" />
                 </v-col>
                 <v-col cols="6" md="3">
-                    <v-card variant="outlined" class="pa-4 text-center">
-                        <div class="text-h4 font-weight-bold">{{ store.dashboard.metrics.upcoming_clinics }}</div>
-                        <div class="text-caption text-medium-emphasis mt-1">Upcoming (14 days)</div>
-                    </v-card>
+                    <AppStatCard label="In Progress" :value="clinicDayMetrics.in_progress" icon="mdi-stethoscope" tone="info" color="info" />
                 </v-col>
                 <v-col cols="6" md="3">
-                    <v-card variant="outlined" class="pa-4 text-center">
-                        <div class="text-h4 font-weight-bold" :class="store.dashboard.metrics.pending_confirmation > 0 ? 'text-warning' : 'text-medium-emphasis'">{{ store.dashboard.metrics.pending_confirmation }}</div>
-                        <div class="text-caption text-medium-emphasis mt-1">Pending Confirm</div>
-                    </v-card>
+                    <AppStatCard label="Completed" :value="clinicDayMetrics.completed" icon="mdi-check-circle-outline" tone="success" />
+                </v-col>
+            </v-row>
+
+            <!-- Key metrics -->
+            <h2 class="section-title mb-3">At a Glance</h2>
+            <v-row class="mb-6" dense>
+                <v-col cols="6" md="3">
+                    <AppStatCard label="Today's Clinics" :value="store.dashboard.metrics.today_clinics" icon="mdi-hospital-building" tone="neutral" />
+                </v-col>
+                <v-col cols="6" md="3">
+                    <AppStatCard label="Today's Appointments" :value="store.dashboard.metrics.today_appointments" icon="mdi-calendar-check" tone="neutral" />
+                </v-col>
+                <v-col cols="6" md="3">
+                    <AppStatCard label="Upcoming (14 days)" :value="store.dashboard.metrics.upcoming_clinics" icon="mdi-calendar-month" tone="neutral" />
+                </v-col>
+                <v-col cols="6" md="3">
+                    <AppStatCard
+                        label="Pending Confirm"
+                        :value="store.dashboard.metrics.pending_confirmation"
+                        icon="mdi-clock-alert-outline"
+                        :tone="store.dashboard.metrics.pending_confirmation > 0 ? 'warning' : 'neutral'"
+                        :color="store.dashboard.metrics.pending_confirmation > 0 ? 'warning' : 'neutral'"
+                    />
                 </v-col>
             </v-row>
 
             <!-- Upcoming clinics -->
-            <div v-if="store.dashboard.upcoming && store.dashboard.upcoming.length > 0">
-                <h2 class="text-subtitle-1 font-weight-bold text-medium-emphasis mb-3 text-uppercase" style="letter-spacing: 0.5px;">Upcoming Clinics</h2>
+            <div v-if="store.dashboard.upcoming && store.dashboard.upcoming.length">
+                <v-row class="align-center mb-3">
+                    <v-col>
+                        <h2 class="section-title mb-0">Upcoming Clinics</h2>
+                    </v-col>
+                    <v-col cols="auto">
+                        <v-btn variant="text" size="small" color="primary" to="/doctor/schedule" append-icon="mdi-arrow-right">Full schedule</v-btn>
+                    </v-col>
+                </v-row>
                 <v-card variant="outlined">
                     <v-list density="compact">
                         <v-list-item v-for="s in store.dashboard.upcoming" :key="s.id" :to="`/doctor/clinics?session=${s.id}`">
                             <template #prepend>
-                                <div class="text-right mr-3" style="min-width: 80px;">
+                                <div class="text-right mr-3" style="min-width: 92px;">
                                     <div class="text-caption text-medium-emphasis">{{ s.day }}</div>
-                                    <div class="text-body-2 font-weight-bold">{{ s.start_time }}</div>
+                                    <div class="text-body-2 font-weight-bold text-primary">{{ s.start_time }}</div>
                                 </div>
                             </template>
                             <v-list-item-title class="font-weight-medium">{{ s.facility.name }}</v-list-item-title>
-const store = useDoctorWorkspaceStore();
-const clinicDayMetrics = ref(null);
-
-const doctorInitials = computed(() => {
-                            <v-list-item-subtitle>{{ s.facility.city }} · {{ s.end_time }}</v-list-item-subtitle>
+                            <v-list-item-subtitle>{{ s.facility.city }} · ends {{ s.end_time }}</v-list-item-subtitle>
                             <template #append>
-                                <v-chip :color="sessionStatusColor(s)" size="x-small" variant="tonal">{{ sessionStatusLabel(s) }}</v-chip>
+                                <AppStatusChip :status="sessionStatusKey(s)" size="x-small" />
                             </template>
                         </v-list-item>
                     </v-list>
@@ -173,15 +158,16 @@ const doctorInitials = computed(() => {
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useDoctorWorkspaceStore } from "../../stores/doctorWorkspaceStore";
+import AppPageHeader from "../../components/ui/AppPageHeader.vue";
+import AppStatCard from "../../components/ui/AppStatCard.vue";
+import AppStatusChip from "../../components/ui/AppStatusChip.vue";
+import AppLoadingState from "../../components/ui/AppLoadingState.vue";
+import AppErrorState from "../../components/ui/AppErrorState.vue";
 
 const store = useDoctorWorkspaceStore();
-
-const doctorInitials = computed(() => {
-    const name = store.dashboard?.doctor?.name || '';
-    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-});
+const clinicDayMetrics = ref(null);
 
 onMounted(async () => {
     await store.fetchDashboard();
@@ -191,27 +177,9 @@ onMounted(async () => {
     } catch (e) {}
 });
 
-function sessionStatusColor(s) {
-    if (s.status === 'cancelled') return 'error';
-    if (s.is_confirmed) return 'success';
-    return 'warning';
-}
-
-function sessionStatusLabel(s) {
-    if (s.status === 'cancelled') return 'Cancelled';
-    if (s.is_confirmed) return 'Confirmed';
-    return 'Pending';
-}
-
-function aptStatusColor(status) {
-    return {
-        pending: 'warning',
-        confirmed: 'success',
-        checked_in: 'teal',
-        in_progress: 'amber',
-        completed: 'info',
-        cancelled: 'error',
-        no_show: 'deep-orange',
-    }[status] || 'default';
+function sessionStatusKey(s) {
+    if (s.status === 'cancelled') return 'cancelled';
+    if (s.is_confirmed) return 'confirmed';
+    return 'pending';
 }
 </script>

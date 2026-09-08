@@ -11,6 +11,7 @@ enum PaymentStatus: string
     case CANCELLED = 'cancelled';
     case REFUNDED = 'refunded';
     case PARTIALLY_REFUNDED = 'partially_refunded';
+    case EXPIRED = 'expired';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum PaymentStatus: string
             self::CANCELLED => 'Cancelled',
             self::REFUNDED => 'Refunded',
             self::PARTIALLY_REFUNDED => 'Partially Refunded',
+            self::EXPIRED => 'Expired',
         };
     }
 
@@ -35,11 +37,12 @@ enum PaymentStatus: string
             self::CANCELLED => 'var(--color-muted)',
             self::REFUNDED => 'var(--color-muted)',
             self::PARTIALLY_REFUNDED => 'var(--color-warning)',
+            self::EXPIRED => 'var(--color-muted)',
         };
     }
 
     public function isTerminal(): bool
     {
-        return in_array($this, [self::PAID, self::FAILED, self::CANCELLED, self::REFUNDED]);
+        return in_array($this, [self::PAID, self::FAILED, self::CANCELLED, self::REFUNDED, self::EXPIRED]);
     }
 }

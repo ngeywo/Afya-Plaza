@@ -8,29 +8,20 @@ export const financeService = {
     // ─── Doctor Earnings ─────────────────────────────────────────────────────────
 
     /**
-     * GET /api/finance/earnings
+     * GET /api/doctor/earnings
      * Returns paginated earnings list + summary for the authenticated doctor.
      */
     async getEarnings(params = {}) {
-        const response = await api.get('/finance/earnings', { params });
+        const response = await api.get('/doctor/earnings', { params });
         return response.data; // { summary, data, meta }
     },
 
     /**
-     * GET /api/finance/earnings/{id}
-     * Returns a single earning with full details.
-     */
-    async getEarningDetail(id) {
-        const response = await api.get(`/finance/earnings/${id}`);
-        return response.data.data;
-    },
-
-    /**
-     * POST /api/finance/payout-request
+     * POST /api/doctor/payout-request
      * Moves available earnings into a payout request.
      */
     async requestPayout() {
-        const response = await api.post('/finance/payout-request');
+        const response = await api.post('/doctor/payout-request');
         return response.data; // { message, data }
     },
 
@@ -96,22 +87,15 @@ export const financeService = {
         const response = await api.get(`/payments/${id}`);
         return response.data.data;
     },
-    /**
-     * GET /api/payments/{id}
-     */
-    async getPayment(id) {
-        const response = await api.get(`/payments/${id}`);
-        return response.data.data;
-    },
 
     // ─── Doctor Payouts ─────────────────────────────────────────────────────────
 
     /**
-     * GET /api/finance/payouts
+     * GET /api/doctor/payouts
      * Returns the authenticated doctor's payout history.
      */
     async getDoctorPayouts(params = {}) {
-        const response = await api.get('/finance/payouts', { params });
+        const response = await api.get('/doctor/payouts', { params });
         return response.data;
     },
 

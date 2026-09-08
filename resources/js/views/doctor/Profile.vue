@@ -64,13 +64,16 @@
                 </v-card-text>
             </v-card>
         </template>
+        <v-snackbar v-model="snackbar" :color="snackColor" timeout="3000">{{ snackText }}</v-snackbar>
     </div>
 </template>
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useDoctorWorkspaceStore } from "../../stores/doctorWorkspaceStore";
+import { useNotifier } from "../../composables/useNotifier";
 
 const store = useDoctorWorkspaceStore();
+const { snackbar, snackText, snackColor, notifyError } = useNotifier();
 const saving = ref(false);
 const saveMsg = ref('');
 
@@ -110,7 +113,7 @@ async function save() {
         saveMsg.value = 'Profile updated successfully.';
         setTimeout(() => { saveMsg.value = ''; }, 3000);
     } catch (e) {
-        alert(e.response?.data?.message || 'Failed to update profile');
+        notifyError(e.response?.data?.message || 'Failed to update profile');
     } finally {
         saving.value = false;
     }

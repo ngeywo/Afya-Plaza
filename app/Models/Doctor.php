@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\DoctorRelationshipStatus;
+use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Doctor extends Model
 {
@@ -19,12 +22,16 @@ class Doctor extends Model
         'biography',
         'qualifications',
         'license_number',
+        'registry_number',
+        'professional_status',
         'consultation_fee',
         'avatar',
         'cover_image',
         'gender',
         'date_of_birth',
         'years_of_experience',
+        'languages',
+        'areas_of_practice',
         'is_verified',
         'is_active',
         'is_featured',
@@ -45,8 +52,31 @@ class Doctor extends Model
         'verified_at' => 'datetime',
         'suspended_at' => 'datetime',
         'consultation_fee' => 'decimal:2',
-        'verification_status' => \App\Enums\VerificationStatus::class,
+        'languages' => 'array',
+        'areas_of_practice' => 'array',
+        'verification_status' => VerificationStatus::class,
     ];
+
+    /**
+     * Phase 23 (Unified Doctor Identity): normalize the canonical identifiers
+     * before every save so "kmpdc-12345" and "KMPDC 12345" are the same doctor.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Doctor $doctor) {
+            $doctor->license_number = static::normalizeIdentifier($doctor->license_number);
+            $doctor->registry_number = static::normalizeIdentifier($doctor->registry_number);
+        });
+    }
+
+    public static function normalizeIdentifier(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        return strtoupper(preg_replace('/\s+/', '', $value));
+    }
 
     public function user(): BelongsTo
     {
@@ -109,11 +139,16 @@ class Doctor extends Model
         return $this->belongsTo(User::class, 'suspended_by');
     }
 
+    public function verificationRequests(): MorphMany
+    {
+        return $this->morphMany(VerificationRequest::class, 'verifiable');
+    }
+
     // ─── Phase 13: Governance Scopes ──────────────────────────────────────────────
 
     public function activeRelationships()
     {
-        return $this->doctorFacilities()->where('status', \App\Enums\DoctorRelationshipStatus::ACTIVE->value);
+        return $this->doctorFacilities()->where('status', DoctorRelationshipStatus::ACTIVE->value);
     }
 
     // ─── Phase 12: Financial Relations ───────────────────────────────────────────
@@ -147,16 +182,19 @@ class Doctor extends Model
 
     public function isBookable(): bool
     {
-        if (!$this->is_active) return false;
+        if (! $this->is_active) {
+            return false;
+        }
+
         return in_array($this->verification_status, [
-            \App\Enums\VerificationStatus::VERIFIED,
-            \App\Enums\VerificationStatus::SUSPENDED,
+            VerificationStatus::VERIFIED,
+            VerificationStatus::PENDING,
         ], true);
     }
 
     public function isSuspended(): bool
     {
-        return $this->verification_status === \App\Enums\VerificationStatus::SUSPENDED;
+        return $this->verification_status === VerificationStatus::SUSPENDED;
     }
 
     /**
@@ -169,13 +207,15 @@ class Doctor extends Model
             ->where('status', DoctorSubscription::STATUS_ACTIVE)
             ->first();
 
-        if ($sub) return $sub;
+        if ($sub) {
+            return $sub;
+        }
 
         // Auto-assign the default plan (Starter) to doctors without a subscription
         $defaultPlan = Plan::active()->default()->first()
             ?? Plan::active()->orderBy('sort_order')->first();
 
-        if (!$defaultPlan) {
+        if (! $defaultPlan) {
             throw new \RuntimeException('No active plan configured in the system.');
         }
 

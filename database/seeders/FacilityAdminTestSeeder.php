@@ -25,7 +25,7 @@ class FacilityAdminTestSeeder extends Seeder
         $busia = Facility::firstOrCreate(['slug' => 'busia-medical-centre'], ['name' => 'Busia Medical Centre']);
         $bungoma = Facility::firstOrCreate(['slug' => 'bungoma-specialist-centre'], ['name' => 'Bungoma Specialist Centre']);
 
-        if (!$busia || !$bungoma) {
+        if (! $busia || ! $bungoma) {
             return; // base seeders must run first
         }
 

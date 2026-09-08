@@ -22,7 +22,6 @@ class CountyController extends Controller
     {
         $counties = County::where('is_active', true)
             ->withCount(['facilities' => fn ($q) => $q->where('is_active', true)])
-            ->having('facilities_count', '>', 0)
             ->orderBy('name')
             ->get()
             ->map(fn ($c) => [

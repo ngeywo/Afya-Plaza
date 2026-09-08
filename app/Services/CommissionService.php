@@ -3,9 +3,8 @@
 namespace App\Services;
 
 use App\Models\Doctor;
-use App\Models\DoctorSubscription;
-use App\Models\Plan;
 use App\Models\Payment;
+use App\Models\Plan;
 
 /**
  * CommissionService — Phase 12
@@ -23,7 +22,6 @@ class CommissionService
      * Calculate commission allocation for a given gross amount and doctor.
      *
      * @param  float|string  $grossAmount  Consultation fee (KES)
-     * @param  Doctor        $doctor
      * @return array{gross_amount: string, commission_amount: string, net_amount: string,
      *                commission_rate: string, commission_type: int, rule_source: string}
      */
@@ -79,6 +77,7 @@ class CommissionService
         if (function_exists('bcmul')) {
             return bcmul($a, $b, 6);
         }
+
         return (string) round((float) $a * (float) $b, 6);
     }
 }

@@ -19,7 +19,9 @@ class NotifyDoctorFollowers
     {
         // Only notify if the session was in a "pending" state before.
         // Prevents notifications on every save.
-        if (!$event->wasPendingBefore) return;
+        if (! $event->wasPendingBefore) {
+            return;
+        }
 
         $this->notifications->notifyFollowersClinicConfirmed($event->session);
     }

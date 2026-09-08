@@ -172,6 +172,6 @@ function dayName(d) { return d ? new Date(d).toLocaleDateString("en-KE", { weekd
 <style scoped>
 .cursor-pointer { cursor: pointer; }
 .session-card:hover { border-color: rgb(var(--v-theme-primary)); }
-.session-card-active { border-color: rgb(var(--v-theme-primary)) !important; background-color: rgba(var(--v-theme-primary), 0.05); }
+.session-card-active { border-color: rgb(var(--v-theme-primary)) !important; background-color: rgb(var(--v-theme-primary) / 0.05); }
 </style>
 

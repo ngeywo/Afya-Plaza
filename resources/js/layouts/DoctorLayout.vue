@@ -5,10 +5,10 @@
             <!-- Header -->
             <v-list-item class="pa-4" :prepend-icon="rail ? 'mdi-stethoscope' : undefined">
                 <template v-if="!rail">
-                    <div class="d-flex align-center">
-                        <v-icon icon="mdi-stethoscope" color="primary" class="mr-2"></v-icon>
+                    <div class="drawer-brand">
+                        <div class="drawer-brand-icon"><v-icon icon="mdi-stethoscope" size="20"></v-icon></div>
                         <div>
-                            <div class="text-subtitle-2 font-weight-bold text-primary">Afya Plaza</div>
+                            <div class="text-subtitle-1 font-weight-bold text-primary" style="line-height: 1.2;">Afya Plaza</div>
                             <div class="text-caption text-medium-emphasis">Doctor Workspace</div>
                         </div>
                     </div>
@@ -24,8 +24,8 @@
                 <v-list-item to="/doctor/schedule" prepend-icon="mdi-calendar-clock" title="Schedule" value="schedule" :active="route.path === '/doctor/schedule'"></v-list-item>
                 <v-list-item to="/doctor/appointments" prepend-icon="mdi-calendar-account" title="Appointments" value="appointments" :active="route.path.startsWith('/doctor/appointments')"></v-list-item>
                 <v-list-item to="/doctor/profile" prepend-icon="mdi-account-circle" title="Profile" value="profile" :active="route.path === '/doctor/profile'"></v-list-item>
-                <v-list-item to="/doctor/profile" prepend-icon="mdi-account-circle" title="Profile" value="profile" :active="route.path === '/doctor/profile'"></v-list-item>
                 <v-list-item to="/doctor/earnings" prepend-icon="mdi-cash-multiple" title="Earnings" value="earnings" :active="route.path.startsWith('/doctor/earnings')"></v-list-item>
+                <v-list-item to="/doctor/plans" prepend-icon="mdi-crown" title="Plans" value="plans" :active="route.path.startsWith('/doctor/plans')"></v-list-item>
             </v-list>
 
             <v-spacer></v-spacer>

@@ -24,9 +24,9 @@ class AuditLog extends Model
     protected function casts(): array
     {
         return [
-            'before'       => 'array',
-            'after'        => 'array',
-            'resource_id'  => 'integer',
+            'before' => 'array',
+            'after' => 'array',
+            'resource_id' => 'integer',
         ];
     }
 
@@ -50,6 +50,7 @@ class AuditLog extends Model
         if ($id !== null) {
             $q->where('resource_id', $id);
         }
+
         return $q;
     }
 
@@ -71,40 +72,40 @@ class AuditLog extends Model
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
     public static function record(
-        int|null $actorId,
+        ?int $actorId,
         string $action,
         string $resourceType,
-        int|null $resourceId = null,
-        string|null $resourceLabel = null,
-        array|null $before = null,
-        array|null $after = null,
-        string|null $reason = null,
-        string|null $ipAddress = null,
-        string|null $userAgent = null,
+        ?int $resourceId = null,
+        ?string $resourceLabel = null,
+        ?array $before = null,
+        ?array $after = null,
+        ?string $reason = null,
+        ?string $ipAddress = null,
+        ?string $userAgent = null,
     ): self {
         return static::create([
-            'actor_id'       => $actorId,
-            'action'         => $action,
-            'resource_type'  => $resourceType,
-            'resource_id'    => $resourceId,
+            'actor_id' => $actorId,
+            'action' => $action,
+            'resource_type' => $resourceType,
+            'resource_id' => $resourceId,
             'resource_label' => $resourceLabel,
-            'before'         => $before,
-            'after'          => $after,
-            'reason'         => $reason,
-            'ip_address'     => $ipAddress,
-            'user_agent'     => $userAgent,
+            'before' => $before,
+            'after' => $after,
+            'reason' => $reason,
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
         ]);
     }
 
     public function getChangeSummaryAttribute(): string
     {
         $before = $this->before ?? [];
-        $after  = $this->after  ?? [];
+        $after = $this->after ?? [];
 
         $changes = [];
         foreach ($after as $key => $val) {
-            if (!array_key_exists($key, $before) || $before[$key] !== $val) {
-                $changes[] = "{$key}: " . ($before[$key] ?? '—') . " → {$val}";
+            if (! array_key_exists($key, $before) || $before[$key] !== $val) {
+                $changes[] = "{$key}: ".($before[$key] ?? '—')." → {$val}";
             }
         }
 

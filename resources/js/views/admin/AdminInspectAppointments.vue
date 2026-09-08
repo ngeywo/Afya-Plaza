@@ -3,7 +3,7 @@
         <div v-if="store.isInspecting" class="mb-4">
             <div class="d-flex align-center mb-1">
                 <v-icon icon="mdi-shield-account" color="red-darken-2" size="20" class="mr-2"></v-icon>
-                <span class="text-caption text-medium-emphasis">Super Admin — Inspecting</span>
+                <span class="text-caption text-medium-emphasis">{{ operatorLabel }} — Inspecting</span>
             </div>
             <h1 class="text-h5 font-weight-bold">{{ workspaceName }}</h1>
         </div>
@@ -23,7 +23,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useAdminWorkspaceStore } from "../../stores/adminWorkspaceStore";
+import { useAuthStore } from "../../stores/authStore";
 const store = useAdminWorkspaceStore();
+const auth = useAuthStore();
+const operatorLabel = computed(() => auth.isSuperAdmin ? "Super Admin" : "Platform Admin");
 const appointments = ref([]);
 const loading = ref(false);
 const error = ref(null);

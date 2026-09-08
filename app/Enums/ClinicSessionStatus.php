@@ -7,8 +7,8 @@ namespace App\Enums;
  */
 enum ClinicSessionStatus: string
 {
-    case DRAFT     = 'draft';
-    case PENDING   = 'pending';
+    case DRAFT = 'draft';
+    case PENDING = 'pending';
     case CONFIRMED = 'confirmed';
     case CANCELLED = 'cancelled';
     case COMPLETED = 'completed';
@@ -16,8 +16,8 @@ enum ClinicSessionStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::DRAFT     => 'Draft',
-            self::PENDING   => 'Pending Confirmation',
+            self::DRAFT => 'Draft',
+            self::PENDING => 'Pending Confirmation',
             self::CONFIRMED => 'Confirmed',
             self::CANCELLED => 'Cancelled',
             self::COMPLETED => 'Completed',
@@ -27,8 +27,8 @@ enum ClinicSessionStatus: string
     public function color(): string
     {
         return match ($this) {
-            self::DRAFT     => 'grey',
-            self::PENDING   => 'warning',
+            self::DRAFT => 'grey',
+            self::PENDING => 'warning',
             self::CONFIRMED => 'success',
             self::CANCELLED => 'error',
             self::COMPLETED => 'info',
@@ -42,6 +42,6 @@ enum ClinicSessionStatus: string
 
     public static function options(): array
     {
-        return collect(self::cases())->map(fn($s) => ['value' => $s->value, 'label' => $s->label()])->values()->all();
+        return collect(self::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->values()->all();
     }
 }

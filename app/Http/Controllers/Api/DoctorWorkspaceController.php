@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\VerificationRequestStatus;
+use App\Enums\VerificationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
+use App\Models\AuditLog;
 use App\Models\ClinicSession;
+use App\Models\Doctor;
 use App\Models\DoctorFacility;
+use App\Models\VerificationRequest;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,11 +29,11 @@ class DoctorWorkspaceController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) {
+        if (! $user->hasRole('doctor')) {
             return response()->json(['error' => 'Forbidden — doctor access only'], 403);
         }
         $doctor = $user->doctor;
-        if (!$doctor) {
+        if (! $doctor) {
             return response()->json(['error' => 'Doctor profile not found'], 404);
         }
 
@@ -76,7 +81,7 @@ class DoctorWorkspaceController extends Controller
                 ->orderBy('start_time')
                 ->limit(10)
                 ->get()
-                ->map(fn($a) => $this->formatAppointmentForDoctor($a))
+                ->map(fn ($a) => $this->formatAppointmentForDoctor($a))
                 ->values();
         }
 
@@ -92,7 +97,7 @@ class DoctorWorkspaceController extends Controller
                 'today' => [
                     'date' => $today->format('Y-m-d'),
                     'day' => $today->format('l, F j'),
-                    'sessions' => $todaySessions->map(fn($s) => $this->formatSessionForDoctor($s))->values(),
+                    'sessions' => $todaySessions->map(fn ($s) => $this->formatSessionForDoctor($s))->values(),
                     'appointments' => $todayApptList,
                 ],
                 'metrics' => [
@@ -101,7 +106,7 @@ class DoctorWorkspaceController extends Controller
                     'upcoming_clinics' => $totalUpcoming,
                     'pending_confirmation' => $pendingConfirmation,
                 ],
-                'upcoming' => $upcomingSessions->map(fn($s) => $this->formatSessionForDoctor($s))->values(),
+                'upcoming' => $upcomingSessions->map(fn ($s) => $this->formatSessionForDoctor($s))->values(),
             ],
         ]);
     }
@@ -113,7 +118,7 @@ class DoctorWorkspaceController extends Controller
     public function clinics(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) {
+        if (! $user->hasRole('doctor')) {
             return response()->json(['error' => 'Forbidden'], 403);
         }
         $doctor = $user->doctor;
@@ -135,7 +140,7 @@ class DoctorWorkspaceController extends Controller
         $sessions = $q->get();
 
         return response()->json([
-            'data' => $sessions->map(fn($s) => $this->formatSessionForDoctor($s, true))->values(),
+            'data' => $sessions->map(fn ($s) => $this->formatSessionForDoctor($s, true))->values(),
             'meta' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
@@ -151,12 +156,15 @@ class DoctorWorkspaceController extends Controller
     public function schedule(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) {
+        if (! $user->hasRole('doctor')) {
             return response()->json(['error' => 'Forbidden'], 403);
         }
         $doctor = $user->doctor;
         $today = today();
         $twoWeeks = $today->copy()->addDays(14);
+        // Sessions are scheduled by facilities and may be set weeks ahead; keep
+        // unconfirmed sessions confirmable early by showing a wider window.
+        $sessionWindow = $today->copy()->addDays(45);
 
         $doctorFacilities = DoctorFacility::with(['facility', 'schedules', 'exceptions.targetFacility'])
             ->where('doctor_id', $doctor->id)
@@ -166,8 +174,8 @@ class DoctorWorkspaceController extends Controller
         $scheduleData = $doctorFacilities->map(function ($df) use ($today, $twoWeeks) {
             $schedules = $df->schedules()
                 ->where('is_active', true)
-                ->where(fn($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $today->toDateString()))
-                ->where(fn($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>=', $today->toDateString()))
+                ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $today->toDateString()))
+                ->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>=', $today->toDateString()))
                 ->orderBy('day_of_week')
                 ->get();
 
@@ -184,7 +192,7 @@ class DoctorWorkspaceController extends Controller
                 ],
                 'consultation_fee' => $df->consultation_fee,
                 'accepts_appointments' => $df->accepts_appointments,
-                'schedules' => $schedules->map(fn($s) => [
+                'schedules' => $schedules->map(fn ($s) => [
                     'id' => $s->id,
                     'day_of_week' => $s->day_of_week,
                     'day_name' => $this->dayName($s->day_of_week),
@@ -193,7 +201,7 @@ class DoctorWorkspaceController extends Controller
                     'slot_duration_minutes' => $s->slot_duration_minutes,
                     'max_appointments' => $s->max_appointments,
                 ])->values(),
-                'exceptions' => $exceptions->map(fn($e) => [
+                'exceptions' => $exceptions->map(fn ($e) => [
                     'id' => $e->id,
                     'date' => $e->date->format('Y-m-d'),
                     'day' => $e->date->format('l, M j'),
@@ -211,14 +219,14 @@ class DoctorWorkspaceController extends Controller
 
         $sessions = ClinicSession::with(['facility'])
             ->where('doctor_id', $doctor->id)
-            ->whereBetween('session_date', [$today->toDateString(), $twoWeeks->toDateString()])
+            ->whereBetween('session_date', [$today->toDateString(), $sessionWindow->toDateString()])
             ->orderBy('session_date')
             ->get();
 
         return response()->json([
             'data' => [
                 'recurring' => $scheduleData->values(),
-                'upcoming_sessions' => $sessions->map(fn($s) => [
+                'upcoming_sessions' => $sessions->map(fn ($s) => [
                     'id' => $s->id,
                     'session_date' => $s->session_date->format('Y-m-d'),
                     'day' => $s->session_date->format('l, M j'),
@@ -243,7 +251,9 @@ class DoctorWorkspaceController extends Controller
     public function appointments(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) return response()->json(['error' => 'Forbidden'], 403);
+        if (! $user->hasRole('doctor')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
         $doctor = $user->doctor;
         $date = $request->filled('date') ? Carbon::parse($request->date) : today();
         $sessionId = $request->input('session_id');
@@ -258,8 +268,12 @@ class DoctorWorkspaceController extends Controller
         } elseif ($request->filled('date')) {
             $q->where('appointment_date', $date->toDateString());
         }
-        if ($sessionId) $q->where('clinic_session_id', $sessionId);
-        if ($request->filled('status')) $q->where('status', $request->status);
+        if ($sessionId) {
+            $q->where('clinic_session_id', $sessionId);
+        }
+        if ($request->filled('status')) {
+            $q->where('status', $request->status);
+        }
 
         // Phase 17: grouped view — the doctor's mobile practice grouped by
         // clinic session / facility / date (Section 22). Never flattened.
@@ -270,6 +284,7 @@ class DoctorWorkspaceController extends Controller
                 ->map(function ($group) {
                     $first = $group->first();
                     $session = $first->clinicSession;
+
                     return [
                         'clinic_session' => $session ? [
                             'id' => $session->id,
@@ -302,8 +317,9 @@ class DoctorWorkspaceController extends Controller
         }
 
         $appointments = $q->paginate($request->integer('per_page', 20));
+
         return response()->json([
-            'data' => $appointments->map(fn($a) => $this->formatAppointmentForDoctor($a))->values(),
+            'data' => $appointments->map(fn ($a) => $this->formatAppointmentForDoctor($a))->values(),
             'meta' => [
                 'date' => $date->toDateString(),
                 'session_id' => $sessionId,
@@ -322,7 +338,9 @@ class DoctorWorkspaceController extends Controller
     public function showAppointment(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) return response()->json(['error' => 'Forbidden'], 403);
+        if (! $user->hasRole('doctor')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
         $doctor = $user->doctor;
 
         $appointment = Appointment::with(['user', 'facility', 'clinicSession.doctor'])
@@ -330,7 +348,10 @@ class DoctorWorkspaceController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (!$appointment) return response()->json(['error' => 'Appointment not found'], 404);
+        if (! $appointment) {
+            return response()->json(['error' => 'Appointment not found'], 404);
+        }
+
         return response()->json(['data' => $this->formatAppointmentForDoctor($appointment)]);
     }
 
@@ -340,8 +361,11 @@ class DoctorWorkspaceController extends Controller
     public function profile(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) return response()->json(['error' => 'Forbidden'], 403);
+        if (! $user->hasRole('doctor')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
         $doctor = $user->doctor->load(['specialties', 'facilities.county']);
+
         return response()->json(['data' => [
             'id' => $doctor->id, 'display_name' => $doctor->display_name, 'slug' => $doctor->slug,
             'biography' => $doctor->biography, 'qualifications' => $doctor->qualifications,
@@ -350,11 +374,11 @@ class DoctorWorkspaceController extends Controller
             'years_of_experience' => $doctor->years_of_experience,
             'is_verified' => $doctor->is_verified, 'verified_at' => $doctor->verified_at?->toIso8601String(),
             'is_active' => $doctor->is_active, 'is_featured' => $doctor->is_featured,
-            'specialties' => $doctor->specialties->map(fn($s) => [
+            'specialties' => $doctor->specialties->map(fn ($s) => [
                 'id' => $s->id, 'name' => $s->name, 'icon' => $s->icon,
                 'is_primary' => (bool) $s->pivot->is_primary,
             ])->values(),
-            'facilities' => $doctor->facilities->map(fn($f) => [
+            'facilities' => $doctor->facilities->map(fn ($f) => [
                 'id' => $f->id, 'name' => $f->name, 'city' => $f->city,
                 'county' => $f->county?->name, 'type' => $f->type, 'is_verified' => $f->is_verified,
                 'consultation_fee' => $f->pivot->consultation_fee,
@@ -370,7 +394,9 @@ class DoctorWorkspaceController extends Controller
     public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) return response()->json(['error' => 'Forbidden'], 403);
+        if (! $user->hasRole('doctor')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
         $doctor = $user->doctor;
         $validated = $request->validate([
             'display_name' => 'sometimes|string|max:255',
@@ -380,16 +406,75 @@ class DoctorWorkspaceController extends Controller
             'avatar' => 'sometimes|nullable|string|max:500',
             'gender' => 'sometimes|nullable|string|in:male,female,other',
             'years_of_experience' => 'sometimes|nullable|integer|min:0|max:70',
+            'registry_number' => 'sometimes|nullable|string|max:191',
+            'languages' => 'sometimes|nullable|array',
+            'languages.*' => 'string|max:80',
+            'areas_of_practice' => 'sometimes|nullable|array',
+            'areas_of_practice.*' => 'string|max:120',
         ]);
-        $editableFields = ['display_name', 'biography', 'qualifications', 'consultation_fee', 'avatar', 'gender', 'years_of_experience'];
+        $editableFields = ['display_name', 'biography', 'qualifications', 'consultation_fee', 'avatar', 'gender', 'years_of_experience', 'registry_number', 'languages', 'areas_of_practice'];
+        $originalProfessional = [
+            'display_name' => $doctor->getOriginal('display_name'),
+            'qualifications' => $doctor->getOriginal('qualifications'),
+            'registry_number' => $doctor->getOriginal('registry_number'),
+        ];
         $doctor->update(array_intersect_key($validated, array_flip($editableFields)));
+
+        // Phase 23: professional information changes on a verified doctor
+        // trigger re-verification (Section 10).
+        $this->triggerReverificationIfProfessionalInfoChanged($user, $doctor, $validated, $originalProfessional, $request);
+
         return response()->json(['data' => [
             'id' => $doctor->id, 'display_name' => $doctor->display_name,
             'biography' => $doctor->biography, 'qualifications' => $doctor->qualifications,
             'consultation_fee' => $doctor->consultation_fee, 'avatar' => $doctor->avatar,
             'gender' => $doctor->gender, 'years_of_experience' => $doctor->years_of_experience,
+            'registry_number' => $doctor->registry_number,
+            'verification_status' => $doctor->verification_status?->value,
             'message' => 'Profile updated successfully.',
         ]]);
+    }
+
+    /**
+     * Phase 23: If a verified doctor changes professional registration/credential
+     * information, drop back to pending and open a re-review request.
+     */
+    private function triggerReverificationIfProfessionalInfoChanged($user, $doctor, array $validated, array $original, Request $request): void
+    {
+        $changed = collect(['registry_number', 'qualifications', 'display_name'])
+            ->filter(fn ($f) => array_key_exists($f, $validated) && (string) ($validated[$f] ?? '') !== (string) ($original[$f] ?? ''));
+
+        if ($doctor->is_verified && $changed->isNotEmpty()) {
+            $doctor->update([
+                'verification_status' => VerificationStatus::PENDING->value,
+                'is_verified' => false,
+            ]);
+
+            VerificationRequest::create([
+                'verifiable_type' => Doctor::class,
+                'verifiable_id' => $doctor->id,
+                'user_id' => $user->id,
+                'type' => 'profile_change',
+                'status' => VerificationRequestStatus::PENDING,
+                'registry_number' => $doctor->registry_number,
+                'submitted_data' => ['changed_fields' => $changed->values()],
+                'verification_source' => 'self_change',
+                'submitted_at' => now(),
+            ]);
+
+            AuditLog::record(
+                $user->id,
+                'verification.reverification_triggered',
+                Doctor::class,
+                $doctor->id,
+                $doctor->display_name,
+                ['verification_status' => 'verified'],
+                ['verification_status' => 'pending', 'changed_fields' => $changed->values()],
+                'Professional information changed on a verified profile.',
+                $request->ip(),
+                $request->userAgent(),
+            );
+        }
     }
 
     /**
@@ -398,11 +483,13 @@ class DoctorWorkspaceController extends Controller
     public function facilities(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user->hasRole('doctor')) return response()->json(['error' => 'Forbidden'], 403);
+        if (! $user->hasRole('doctor')) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
         $doctor = $user->doctor;
         $facilities = DoctorFacility::with(['facility.county', 'schedules'])
             ->where('doctor_id', $doctor->id)->get()
-            ->map(fn($df) => [
+            ->map(fn ($df) => [
                 'id' => $df->facility->id, 'name' => $df->facility->name,
                 'city' => $df->facility->city, 'county' => $df->facility->county?->name,
                 'address' => $df->facility->address, 'type' => $df->facility->type,
@@ -414,6 +501,7 @@ class DoctorWorkspaceController extends Controller
                 'ended_at' => $df->ended_at?->toDateString(),
                 'schedule_count' => $df->schedules->count(),
             ])->values();
+
         return response()->json(['data' => $facilities]);
     }
 
@@ -423,8 +511,8 @@ class DoctorWorkspaceController extends Controller
     {
         $base = [
             'id' => $s->id,
-            'session_date' => $s->session_date instanceof \Carbon\Carbon ? $s->session_date->format('Y-m-d') : $s->session_date,
-            'day' => $s->session_date instanceof \Carbon\Carbon ? $s->session_date->format('l, M j') : '',
+            'session_date' => $s->session_date instanceof Carbon ? $s->session_date->format('Y-m-d') : $s->session_date,
+            'day' => $s->session_date instanceof Carbon ? $s->session_date->format('l, M j') : '',
             'start_time' => substr($s->start_time, 0, 5),
             'end_time' => substr($s->end_time, 0, 5),
             'status' => $s->status,
@@ -445,6 +533,7 @@ class DoctorWorkspaceController extends Controller
             $base['cancellation_reason'] = $s->cancellation_reason;
             $base['notes'] = $s->notes;
         }
+
         return $base;
     }
 
@@ -454,8 +543,8 @@ class DoctorWorkspaceController extends Controller
             'id' => $a->id, 'appointment_number' => $a->appointment_number, 'status' => $a->status,
             // Phase 17: actions the doctor may perform now (backend authoritative)
             'allowed_actions' => $a->allowedDoctorActions(),
-            'appointment_date' => $a->appointment_date instanceof \Carbon\Carbon ? $a->appointment_date->format('Y-m-d') : $a->appointment_date,
-            'day' => $a->appointment_date instanceof \Carbon\Carbon ? $a->appointment_date->format('l, M j') : '',
+            'appointment_date' => $a->appointment_date instanceof Carbon ? $a->appointment_date->format('Y-m-d') : $a->appointment_date,
+            'day' => $a->appointment_date instanceof Carbon ? $a->appointment_date->format('l, M j') : '',
             'start_time' => substr($a->start_time, 0, 5), 'end_time' => substr($a->end_time, 0, 5),
             'reason' => $a->reason, 'notes' => $a->notes,
             'amount_paid' => $a->amount_paid, 'payment_status' => $a->payment_status,
@@ -475,7 +564,7 @@ class DoctorWorkspaceController extends Controller
             ] : null,
             'clinic_session' => $a->clinicSession ? [
                 'id' => $a->clinicSession->id,
-                'session_date' => $a->clinicSession->session_date instanceof \Carbon\Carbon ? $a->clinicSession->session_date->format('Y-m-d') : $a->clinicSession->session_date,
+                'session_date' => $a->clinicSession->session_date instanceof Carbon ? $a->clinicSession->session_date->format('Y-m-d') : $a->clinicSession->session_date,
                 'consultation_fee' => $a->clinicSession->consultation_fee,
             ] : null,
         ];
@@ -490,5 +579,4 @@ class DoctorWorkspaceController extends Controller
     }
 }
 
-    // ─── Private helpers ────────────────────────────────────────────────────
-
+// ─── Private helpers ────────────────────────────────────────────────────

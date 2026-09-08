@@ -62,6 +62,18 @@
                 </v-window-item>
             </v-window>
         </template>
+
+        <AppConfirmDialog
+            v-model="cancelDialog"
+            title="Cancel appointment"
+            :message="`Cancel booking ${cancelTarget?.appointment_number ?? ''}? This cannot be undone.`"
+            confirm-label="Cancel Appointment"
+            confirm-color="error"
+            confirm-icon="mdi-calendar-remove"
+            :loading="cancelling === cancelTarget?.id"
+            @confirm="confirmCancel"
+        />
+        <v-snackbar v-model="snackbar" :color="snackColor" timeout="3000">{{ snackText }}</v-snackbar>
     </v-container>
 </template>
 
@@ -72,13 +84,18 @@ import { useAuthStore } from "../../stores/authStore";
 import { useAppointmentStore } from "../../stores/appointmentStore";
 import AppointmentCard from "../../components/patient/AppointmentCard.vue";
 import EmptyState from "../../components/EmptyState.vue";
+import AppConfirmDialog from "../../components/ui/AppConfirmDialog.vue";
+import { useNotifier } from "../../composables/useNotifier";
 
 const auth = useAuthStore();
 const aptStore = useAppointmentStore();
 const router = useRouter();
+const { snackbar, snackText, snackColor, notifyError } = useNotifier();
 
 const activeTab = ref("upcoming");
 const cancelling = ref(null);
+const cancelDialog = ref(false);
+const cancelTarget = ref(null);
 
 const loading = computed(() => aptStore.loading);
 const appointments = computed(() => aptStore.appointments);
@@ -108,12 +125,19 @@ onMounted(load);
 watch(() => auth.isAuthenticated, load);
 
 async function handleCancel(apt) {
-    if (!confirm("Cancel this appointment?")) return;
+    cancelTarget.value = apt;
+    cancelDialog.value = true;
+}
+
+async function confirmCancel() {
+    const apt = cancelTarget.value;
+    if (!apt) return;
     cancelling.value = apt.id;
     try {
         await aptStore.cancel(apt.id);
+        cancelDialog.value = false;
     } catch (e) {
-        alert(e.response?.data?.error || "Failed to cancel appointment.");
+        notifyError(e.response?.data?.error || "Failed to cancel appointment.");
     } finally {
         cancelling.value = null;
     }

@@ -1,14 +1,12 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-4">
-      <div>
-        <h1 class="text-h5 font-weight-bold text-primary">Earnings &amp; Payouts</h1>
-        <p class="text-body-2 text-medium-emphasis mb-0">Track your consultation earnings and request payouts.</p>
-      </div>
-      <v-btn color="primary" prepend-icon="mdi-cash-fast" @click="showPayoutDialog = true" :disabled="!canRequestPayout" :loading="store.loading">
-        Request Payout
-      </v-btn>
-    </div>
+<AppPageHeader title="Earnings &amp; Payouts" subtitle="Track your consultation earnings and request payouts." icon="mdi-cash-multiple">
+      <template #actions>
+        <v-btn color="primary" prepend-icon="mdi-cash-fast" @click="showPayoutDialog = true" :disabled="!canRequestPayout" :loading="store.loading">
+          Request Payout
+        </v-btn>
+      </template>
+    </AppPageHeader>
     <v-alert v-if="store.error" type="error" closable class="mb-4" @click:close="store.clearError()">
       {{ store.error }}
     </v-alert>
@@ -90,6 +88,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useFinanceStore } from "../../stores/financeStore";
+import AppPageHeader from "../../components/ui/AppPageHeader.vue";
 
 const store = useFinanceStore();
 const showPayoutDialog = ref(false);

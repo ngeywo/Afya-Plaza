@@ -15,15 +15,21 @@ class ClinicSessionsSeeder extends Seeder
 
         Doctor::with('doctorFacilities.schedules')->get()->each(function ($doctor) use ($today) {
             foreach ($doctor->doctorFacilities as $df) {
-                if (!$df->is_active) continue;
+                if (! $df->is_active) {
+                    continue;
+                }
 
                 foreach ($df->schedules as $schedule) {
-                    if (!$schedule->is_active) continue;
+                    if (! $schedule->is_active) {
+                        continue;
+                    }
 
                     for ($i = 0; $i < 14; $i++) {
                         $date = $today->copy()->addDays($i);
 
-                        if ($date->dayOfWeek !== $schedule->day_of_week) continue;
+                        if ($date->dayOfWeek !== $schedule->day_of_week) {
+                            continue;
+                        }
 
                         ClinicSession::create([
                             'doctor_id' => $doctor->id,

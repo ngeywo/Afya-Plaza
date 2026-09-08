@@ -6,6 +6,7 @@ import { appointmentService } from '../services/appointmentService';
 export const useFacilityWorkspaceStore = defineStore('facilityWorkspace', () => {
     const dashboard = ref(null);
     const doctors = ref([]);
+    const managedFacilities = ref([]);
     const sessions = ref([]);
     const appointments = ref([]);
     const appointmentDoctors = ref([]);
@@ -28,10 +29,17 @@ export const useFacilityWorkspaceStore = defineStore('facilityWorkspace', () => 
         finally { loading.value = false; }
     }
 
-    async function fetchDoctors() {
+    async function fetchDoctors(params = {}) {
         loading.value = true; error.value = null;
-        try { doctors.value = await facilityWorkspaceService.getDoctors(); }
+        try { doctors.value = await facilityWorkspaceService.getDoctors(params); }
         catch (e) { error.value = e.response?.data?.error || 'Failed to load doctors'; }
+        finally { loading.value = false; }
+    }
+
+    async function fetchManagedFacilities() {
+        loading.value = true; error.value = null;
+        try { managedFacilities.value = await facilityWorkspaceService.getFacilities(); }
+        catch (e) { error.value = e.response?.data?.error || 'Failed to load facilities'; }
         finally { loading.value = false; }
     }
 
@@ -50,6 +58,18 @@ export const useFacilityWorkspaceStore = defineStore('facilityWorkspace', () => 
             return updated;
         } catch (e) {
             error.value = e.response?.data?.error || 'Failed to confirm session';
+            throw e;
+        }
+    }
+
+    async function createSession(data) {
+        clearMessages();
+        try {
+            const created = await facilityWorkspaceService.createClinicSession(data);
+            success.value = 'Clinic session scheduled — awaiting doctor confirmation';
+            return created;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to schedule session';
             throw e;
         }
     }
@@ -100,6 +120,45 @@ export const useFacilityWorkspaceStore = defineStore('facilityWorkspace', () => 
         try { staff.value = await facilityWorkspaceService.getStaff(); }
         catch (e) { error.value = e.response?.data?.error || 'Failed to load staff'; }
         finally { loading.value = false; }
+    }
+
+    async function createStaff(data) {
+        clearMessages();
+        try {
+            const created = await facilityWorkspaceService.createStaff(data);
+            success.value = 'Staff member added';
+            await fetchStaff();
+            return created;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to add staff';
+            throw e;
+        }
+    }
+
+    async function updateStaff(id, data) {
+        clearMessages();
+        try {
+            const updated = await facilityWorkspaceService.updateStaff(id, data);
+            success.value = 'Staff member updated';
+            await fetchStaff();
+            return updated;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to update staff';
+            throw e;
+        }
+    }
+
+    async function removeStaff(id) {
+        clearMessages();
+        try {
+            const res = await facilityWorkspaceService.removeStaff(id);
+            success.value = res?.message || 'Staff member removed';
+            await fetchStaff();
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to remove staff';
+            throw e;
+        }
     }
 
     async function fetchProfile() {
@@ -179,13 +238,34 @@ export const useFacilityWorkspaceStore = defineStore('facilityWorkspace', () => 
         }
     }
 
+    // ─── Onboarding (facility creation after sign-up) ──────────────────────────
+
+    async function loadOnboardingStatus() {
+        return await facilityWorkspaceService.getOnboardingStatus();
+    }
+
+    async function completeOnboarding(data) {
+        clearMessages();
+        try {
+            const res = await facilityWorkspaceService.createOnboarding(data);
+            profile.value = res;
+            success.value = res?.message || 'Facility created';
+            return res;
+        } catch (e) {
+            error.value = e.response?.data?.error || 'Failed to create facility';
+            throw e;
+        }
+    }
+
     return {
         dashboard, doctors, sessions, appointments, appointmentDoctors,
-        locations, staff, profile, loading, error, success,
+        locations, staff, managedFacilities, profile, loading, error, success,
         clinicDay, clinicDayLoading,
-        fetchDashboard, fetchDoctors, fetchSessions, confirmSession, rejectSession,
+        fetchDashboard, fetchDoctors, fetchManagedFacilities, fetchSessions, confirmSession, rejectSession, createSession,
         fetchAppointments, fetchLocations, createLocation, fetchStaff,
+        createStaff, updateStaff, removeStaff,
         fetchProfile, updateProfile, clearMessages,
         fetchClinicDay, checkInAppointment, markAppointmentNoShow, cancelAppointment,
+        loadOnboardingStatus, completeOnboarding,
     };
 });

@@ -38,4 +38,35 @@ export const doctorWorkspaceService = {
         const response = await api.get('/doctor/clinic-day', { params: { date } });
         return response.data.data;
     },
+    // Onboarding (profile creation after sign-up)
+    async getOnboardingStatus() {
+        const response = await api.get('/doctor/onboarding/status');
+        return response.data.data;
+    },
+    async createOnboarding(data) {
+        const response = await api.post('/doctor/onboarding', data);
+        return response.data.data;
+    },
+    // Clinic session management
+    async createSession(data) {
+        const response = await api.post('/sessions', data);
+        return response.data.data;
+    },
+    async confirmSession(id) {
+        const response = await api.post(`/sessions/${id}/confirm`);
+        return response.data.data;
+    },
+    async cancelSession(id, reason) {
+        const response = await api.post(`/sessions/${id}/cancel`, { reason });
+        return response.data.data;
+    },
+    // Plan subscription
+    async getSubscription() {
+        const response = await api.get('/doctor/subscription');
+        return response.data.data;
+    },
+    async subscribe(planId) {
+        const response = await api.post('/doctor/subscription', { plan_id: planId });
+        return response.data;
+    },
 };

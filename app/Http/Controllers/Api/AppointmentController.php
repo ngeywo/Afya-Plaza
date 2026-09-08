@@ -168,12 +168,21 @@ class AppointmentController extends Controller
             $start = Carbon::parse($session->session_date->format('Y-m-d').' '.$validated['start_time']);
             $end = $start->copy()->addMinutes($session->slot_duration_minutes);
 
+            // Phase 23: relationship-scoped sessions snapshot the facility's
+            // service for this doctor at booking time (never rewritten later).
+            $service = $session->doctor_facility_id
+                ? $session->doctorFacility?->services()->active()->orderBy('id')->first()
+                : null;
+
             $appointment = Appointment::create([
                 'appointment_number' => Appointment::generateNumber(),
                 'idempotency_key' => $validated['idempotency_key'] ?? null,
                 'user_id' => $request->user()->id,
                 'doctor_id' => $session->doctor_id,
                 'clinic_session_id' => $session->id,
+                'doctor_facility_service_id' => $service?->id,
+                'service_name' => $service?->service_name,
+                'service_price_snapshot' => $service?->price ?? $session->consultation_fee,
                 'facility_id' => $session->facility_id,
                 'facility_location_id' => $session->facility_location_id,
                 'appointment_date' => $session->session_date,

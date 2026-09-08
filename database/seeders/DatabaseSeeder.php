@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             DoctorsSeeder::class,
             ClinicSessionsSeeder::class,
             FacilityAdminTestSeeder::class,
+            SessionFlowDemoSeeder::class,
         ]);
     }
 }

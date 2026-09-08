@@ -48,6 +48,12 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::where('slug', 'super-admin')->first();
         $superAdmin->permissions()->sync(Permission::pluck('id'));
 
+        $platformAdmin = Role::where('slug', 'platform-admin')->first();
+        $platformAdmin->permissions()->sync(Permission::whereIn('slug', [
+            'doctors.view', 'doctors.verify', 'facilities.view', 'facilities.verify',
+            'appointments.view', 'users.manage', 'audit.view',
+        ])->pluck('id'));
+
         $facilityAdmin = Role::where('slug', 'facility-admin')->first();
         $facilityAdmin->permissions()->sync(Permission::whereIn('slug', [
             'facilities.view', 'facilities.manage', 'doctors.view',

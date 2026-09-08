@@ -45,18 +45,47 @@ class DoctorEarning extends Model
 
     // Status constants
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_AVAILABLE = 'available';
+
     public const STATUS_PAID_OUT = 'paid_out';
+
     public const STATUS_REVERSED = 'reversed';
 
-    public function doctor(): BelongsTo { return $this->belongsTo(Doctor::class); }
-    public function payment(): BelongsTo { return $this->belongsTo(Payment::class); }
-    public function appointment(): BelongsTo { return $this->belongsTo(Appointment::class); }
-    public function payouts(): BelongsToMany { return $this->belongsToMany(Payout::class, 'payout_earnings'); }
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class);
+    }
 
-    public function scopePending($q) { return $q->where('status', self::STATUS_PENDING); }
-    public function scopeAvailable($q) { return $q->where('status', self::STATUS_AVAILABLE); }
-    public function scopePaidOut($q) { return $q->where('status', self::STATUS_PAID_OUT); }
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(Payment::class);
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
+    }
+
+    public function payouts(): BelongsToMany
+    {
+        return $this->belongsToMany(Payout::class, 'payout_earnings');
+    }
+
+    public function scopePending($q)
+    {
+        return $q->where('status', self::STATUS_PENDING);
+    }
+
+    public function scopeAvailable($q)
+    {
+        return $q->where('status', self::STATUS_AVAILABLE);
+    }
+
+    public function scopePaidOut($q)
+    {
+        return $q->where('status', self::STATUS_PAID_OUT);
+    }
 
     public function isAvailable(): bool
     {

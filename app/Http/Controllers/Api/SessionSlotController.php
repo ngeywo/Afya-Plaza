@@ -18,8 +18,7 @@ class SessionSlotController extends Controller
      */
     public function index(int $sessionId): JsonResponse
     {
-        $session = ClinicSession::with(['appointments' => fn ($q) =>
-            $q->whereIn('status', ['pending', 'confirmed'])])
+        $session = ClinicSession::with(['appointments' => fn ($q) => $q->whereIn('status', ['pending', 'confirmed'])])
             ->findOrFail($sessionId);
 
         if ($session->session_date->lt(today())) {
@@ -33,7 +32,7 @@ class SessionSlotController extends Controller
         $available = collect($slots)->map(fn ($slot) => [
             'start_time' => $slot['start_time'],
             'end_time' => $slot['end_time'],
-            'is_available' => !in_array($slot['start_time'], $bookedTimes),
+            'is_available' => ! in_array($slot['start_time'], $bookedTimes),
         ]);
 
         return response()->json([
@@ -52,16 +51,19 @@ class SessionSlotController extends Controller
     private function calculateSlots(ClinicSession $session): array
     {
         $slots = [];
-        $start = Carbon::parse($session->session_date->format('Y-m-d') . ' ' . $session->start_time);
-        $end = Carbon::parse($session->session_date->format('Y-m-d') . ' ' . $session->end_time);
+        $start = Carbon::parse($session->session_date->format('Y-m-d').' '.$session->start_time);
+        $end = Carbon::parse($session->session_date->format('Y-m-d').' '.$session->end_time);
         $duration = $session->slot_duration_minutes;
 
         while ($start->lt($end)) {
             $slotEnd = $start->copy()->addMinutes($duration);
-            if ($slotEnd->gt($end)) break;
+            if ($slotEnd->gt($end)) {
+                break;
+            }
             $slots[] = ['start_time' => $start->format('H:i'), 'end_time' => $slotEnd->format('H:i')];
             $start->addMinutes($duration);
         }
+
         return $slots;
     }
 }

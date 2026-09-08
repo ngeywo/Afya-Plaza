@@ -12,8 +12,9 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         $role = Role::where('slug', 'super-admin')->first();
-        if (!$role) {
+        if (! $role) {
             $this->command->warn('super-admin role not found — ensure RolesAndPermissionsSeeder runs first.');
+
             return;
         }
 

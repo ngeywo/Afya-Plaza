@@ -2,17 +2,15 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
-
 use App\Models\Appointment;
 use App\Models\ClinicSession;
 use App\Models\Doctor;
 use App\Models\Facility;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 /**
  * Phase 17: Appointment booking safety + cancellation authorization.
@@ -24,11 +22,17 @@ abstract class AppointmentTestCase extends TestCase
     use RefreshDatabase;
 
     protected User $patient;
+
     protected User $otherPatient;
+
     protected User $doctorUser;
+
     protected Doctor $doctor;
+
     protected Facility $facilityA;
+
     protected Facility $facilityB;
+
     protected ClinicSession $session;
 
     protected function setUp(): void
@@ -62,6 +66,7 @@ abstract class AppointmentTestCase extends TestCase
     {
         $user = User::factory()->create();
         $user->roles()->attach(Role::where('slug', $roleSlug)->first());
+
         return $user;
     }
 
@@ -86,6 +91,7 @@ abstract class AppointmentTestCase extends TestCase
     protected function book(User $patient, string $slot = '09:00', array $extra = [])
     {
         Sanctum::actingAs($patient);
+
         return $this->postJson('/api/appointments', array_merge([
             'clinic_session_id' => $this->session->id,
             'start_time' => $slot,
@@ -96,6 +102,7 @@ abstract class AppointmentTestCase extends TestCase
     {
         $user->roles()->attach(Role::where('slug', 'facility-staff')->first());
         $user->facilities()->attach($facility->id);
+
         return $user;
     }
 }

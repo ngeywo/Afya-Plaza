@@ -17,6 +17,8 @@ class Payment extends Model
         'user_id',
         'doctor_id',
         'facility_id',
+        'recipient_type',
+        'facility_payment_account_id',
         'gross_amount',
         'commission_amount',
         'net_amount',
@@ -56,27 +58,45 @@ class Payment extends Model
 
     // Status constants
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_PROCESSING = 'processing';
+
     public const STATUS_PAID = 'paid';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_REFUNDED = 'refunded';
+
     public const STATUS_PARTIALLY_REFUNDED = 'partially_refunded';
+
+    public const STATUS_EXPIRED = 'expired';
+
+    // Who receives the money for this payment
+    public const RECIPIENT_FACILITY = 'facility';
+
+    public const RECIPIENT_DOCTOR = 'doctor';
 
     // Method constants
     public const METHOD_MOBILE_MONEY = 'mobile_money';
+
     public const METHOD_CARD = 'card';
+
     public const METHOD_BANK = 'bank';
+
     public const METHOD_CASH = 'cash';
+
     public const METHOD_OTHER = 'other';
 
     // Commission type snapshot constants (mirror Plan types)
     public const COMMISSION_TYPE_PERCENTAGE = 1;
+
     public const COMMISSION_TYPE_FIXED = 2;
 
     public static function generateReference(): string
     {
-        return 'PAY-' . now()->format('Ymd') . '-' . str_pad(random_int(1, 99999), 5, '0', STR_PAD_LEFT);
+        return 'PAY-'.now()->format('Ymd').'-'.str_pad(random_int(1, 99999), 5, '0', STR_PAD_LEFT);
     }
 
     public function appointment(): BelongsTo
@@ -99,6 +119,11 @@ class Payment extends Model
         return $this->belongsTo(Facility::class);
     }
 
+    public function facilityPaymentAccount(): BelongsTo
+    {
+        return $this->belongsTo(FacilityPaymentAccount::class);
+    }
+
     public function earning(): HasOne
     {
         return $this->hasOne(DoctorEarning::class);
@@ -112,6 +137,11 @@ class Payment extends Model
     public function scopeFailed($q)
     {
         return $q->where('status', self::STATUS_FAILED);
+    }
+
+    public function scopeFacilityRecipient($q)
+    {
+        return $q->where('recipient_type', self::RECIPIENT_FACILITY);
     }
 
     public function scopePending($q)
@@ -139,8 +169,18 @@ class Payment extends Model
         return $this->status === self::STATUS_FAILED;
     }
 
+    public function isExpired(): bool
+    {
+        return $this->status === self::STATUS_EXPIRED;
+    }
+
+    public function isFacilityRecipient(): bool
+    {
+        return $this->recipient_type === self::RECIPIENT_FACILITY;
+    }
+
     public function formatMoney(string $field): string
     {
-        return 'KES ' . number_format((float) $this->{$field}, 2);
+        return 'KES '.number_format((float) $this->{$field}, 2);
     }
 }

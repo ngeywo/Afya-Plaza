@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\DoctorRelationshipStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Facility;
 use Illuminate\Http\JsonResponse;
@@ -57,5 +58,35 @@ class FacilityController extends Controller
                     'specialties' => $d->specialties->map(fn ($s) => $s->name),
                 ]),
         ]]);
+    }
+
+    /**
+     * Phase 23: GET /api/facilities/{slug}/doctors — relationship-driven list of
+     * doctors licensed (ACTIVE) at this facility, each with their facility services.
+     */
+    public function doctors(string $slug): JsonResponse
+    {
+        $facility = Facility::where('slug', $slug)->firstOrFail();
+
+        $relationships = $facility->doctorFacilities()
+            ->where('status', DoctorRelationshipStatus::ACTIVE)
+            ->with(['doctor.specialties', 'services'])
+            ->get();
+
+        return response()->json(['data' => $relationships->map(fn ($df) => [
+            'id' => $df->doctor_id,
+            'name' => $df->doctor?->display_name,
+            'slug' => $df->doctor?->slug,
+            'avatar' => $df->doctor?->avatar,
+            'is_verified' => $df->doctor?->is_verified,
+            'consultation_fee' => $df->consultation_fee,
+            'accepts_appointments' => $df->accepts_appointments,
+            'specialties' => $df->doctor?->specialties->map(fn ($s) => $s->name) ?? [],
+            'services' => $df->services->filter(fn ($s) => $s->is_active)->map(fn ($s) => [
+                'name' => $s->service_name,
+                'price' => $s->price,
+                'duration_minutes' => $s->duration_minutes,
+            ])->values(),
+        ])]);
     }
 }
